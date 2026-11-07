@@ -1,5 +1,6 @@
 /**
- * Cloudscreen design tokens. Blue + sun yellow (§16.1), lighter in light mode, deeper in dark mode.
+ * Cloudscreen design tokens (§16.1). Apothecary palette: honey yellow, warm black, cream and kraft,
+ * with a botanical green. Black buttons in light mode, honey buttons in dark mode.
  */
 
 import '@/global.css';
@@ -8,36 +9,40 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#0E1B2C',
-    background: '#F3F7FD',
+    text: '#1C1A17',
+    background: '#FBF7EE',
     backgroundElement: '#FFFFFF',
-    backgroundSelected: '#DCE8FB',
-    textSecondary: '#55657A',
-    tint: '#1F6FE0',
-    onTint: '#FFFFFF',
-    sun: '#FFC23D',
-    sunSoft: '#FFF3D1',
-    border: '#DDE5F0',
-    danger: '#D93B30',
-    warning: '#E58A1F',
-    success: '#2F9E5B',
-    track: '#E4EBF5',
+    backgroundSelected: '#F3EAD3',
+    textSecondary: '#6E6556',
+    tint: '#1C1A17',
+    onTint: '#FFF8E6',
+    sun: '#FFC72C',
+    sunSoft: '#FFF1C2',
+    onSun: '#1C1A17',
+    border: '#E8DFCB',
+    danger: '#C0392B',
+    warning: '#E07B1A',
+    success: '#5B7F3A',
+    calm: '#C9A86A',
+    track: '#EFE6D2',
   },
   dark: {
-    text: '#EEF3FA',
-    background: '#08111D',
-    backgroundElement: '#122033',
-    backgroundSelected: '#1B3354',
-    textSecondary: '#9AAAC0',
-    tint: '#5B9DFF',
-    onTint: '#04101F',
-    sun: '#FFC94D',
-    sunSoft: '#3A2F12',
-    border: '#22344C',
-    danger: '#FF6B5E',
-    warning: '#FFA54A',
-    success: '#4CC47F',
-    track: '#1D2C42',
+    text: '#F6EFE0',
+    background: '#15120E',
+    backgroundElement: '#211C16',
+    backgroundSelected: '#2E271E',
+    textSecondary: '#A99D88',
+    tint: '#FFC72C',
+    onTint: '#1C1A17',
+    sun: '#FFC72C',
+    sunSoft: '#3A2E12',
+    onSun: '#1C1A17',
+    border: '#3A3226',
+    danger: '#F26B5B',
+    warning: '#F5A04A',
+    success: '#8DB36A',
+    calm: '#B8955A',
+    track: '#2C251C',
   },
 } as const;
 
@@ -46,11 +51,11 @@ export type Palette = (typeof Colors)['light'] | (typeof Colors)['dark'];
 
 /** WHO UV index categories (§16.2). Color never carries meaning alone: always paired with the label. */
 export function uvCategory(uvi: number): { label: string; color: string } {
-  if (uvi < 3) return { label: 'Low', color: '#3BA55C' };
-  if (uvi < 6) return { label: 'Moderate', color: '#E8B923' };
-  if (uvi < 8) return { label: 'High', color: '#F07F1F' };
-  if (uvi < 11) return { label: 'Very high', color: '#DD3C35' };
-  return { label: 'Extreme', color: '#8E44AD' };
+  if (uvi < 3) return { label: 'Low', color: '#6E9B45' };
+  if (uvi < 6) return { label: 'Moderate', color: '#F2B705' };
+  if (uvi < 8) return { label: 'High', color: '#E8781C' };
+  if (uvi < 11) return { label: 'Very high', color: '#C8372D' };
+  return { label: 'Extreme', color: '#7B3F8C' };
 }
 
 /** Color for a burn fraction (0–1+). */
@@ -58,7 +63,7 @@ export function fractionColor(f: number, c: Palette): string {
   if (f >= 1) return c.danger;
   if (f >= 0.8) return c.warning;
   if (f >= 0.5) return c.sun;
-  return c.tint;
+  return c.calm;
 }
 
 export const Fonts = Platform.select({
