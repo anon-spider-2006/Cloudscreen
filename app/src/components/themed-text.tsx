@@ -11,7 +11,7 @@ export type ThemedTextProps = TextProps & {
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
-  return <Text style={[{ color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  return <Text style={[{ fontFamily: Fonts.sans, color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
@@ -31,14 +31,16 @@ const styles = StyleSheet.create({
     fontWeight: 500,
   },
   title: {
+    fontFamily: Fonts.serif,
     fontSize: 48,
-    fontWeight: 600,
+    fontWeight: 400,
     lineHeight: 52,
   },
   subtitle: {
-    fontSize: 32,
+    fontFamily: Fonts.serif,
+    fontSize: 36,
     lineHeight: 44,
-    fontWeight: 600,
+    fontWeight: 400,
   },
   link: {
     lineHeight: 30,

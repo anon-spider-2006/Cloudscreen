@@ -8,36 +8,16 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#0E1B2C',
-    background: '#F3F7FD',
-    backgroundElement: '#FFFFFF',
-    backgroundSelected: '#DCE8FB',
-    textSecondary: '#55657A',
-    tint: '#1F6FE0',
-    onTint: '#FFFFFF',
-    sun: '#FFC23D',
-    sunSoft: '#FFF3D1',
-    border: '#DDE5F0',
-    danger: '#D93B30',
-    warning: '#E58A1F',
-    success: '#2F9E5B',
-    track: '#E4EBF5',
+    text: '#24394B', background: '#F7F3E9', backgroundElement: '#F7F3E9',
+    backgroundSelected: '#DCE5EB', textSecondary: '#526878', tint: '#233294',
+    onTint: '#FFFFFF', sun: '#EBC56B', sunSoft: '#F2E4BA', border: '#C6CBC6',
+    danger: '#AD4036', warning: '#956019', success: '#39715A', track: '#DFE3DF',
   },
   dark: {
-    text: '#EEF3FA',
-    background: '#08111D',
-    backgroundElement: '#122033',
-    backgroundSelected: '#1B3354',
-    textSecondary: '#9AAAC0',
-    tint: '#5B9DFF',
-    onTint: '#04101F',
-    sun: '#FFC94D',
-    sunSoft: '#3A2F12',
-    border: '#22344C',
-    danger: '#FF6B5E',
-    warning: '#FFA54A',
-    success: '#4CC47F',
-    track: '#1D2C42',
+    text: '#F4EEE1', background: '#192D3C', backgroundElement: '#192D3C',
+    backgroundSelected: '#30495C', textSecondary: '#B3C4CD', tint: '#B4C4FF',
+    onTint: '#192D3C', sun: '#EBC56B', sunSoft: '#443D2A', border: '#4C606B',
+    danger: '#FF9B8C', warning: '#EBC56B', success: '#9EC9B0', track: '#3B5260',
   },
 } as const;
 
@@ -61,26 +41,10 @@ export function fractionColor(f: number, c: Palette): string {
   return c.tint;
 }
 
-export const Fonts = Platform.select({
-  ios: {
-    sans: 'system-ui',
-    serif: 'ui-serif',
-    rounded: 'ui-rounded',
-    mono: 'ui-monospace',
-  },
-  default: {
-    sans: 'normal',
-    serif: 'serif',
-    rounded: 'normal',
-    mono: 'monospace',
-  },
-  web: {
-    sans: 'var(--font-display)',
-    serif: 'var(--font-serif)',
-    rounded: 'var(--font-rounded)',
-    mono: 'var(--font-mono)',
-  },
-});
+export const Fonts = {
+  sans: 'Karla', serif: 'GildaDisplay', rounded: 'Karla',
+  mono: Platform.select({ ios: 'Menlo', default: 'monospace' }),
+};
 
 export const Spacing = {
   half: 2,
@@ -93,4 +57,4 @@ export const Spacing = {
 } as const;
 
 export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
-export const MaxContentWidth = 640;
+export const MaxContentWidth = 840;

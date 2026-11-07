@@ -4,7 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ThemedText } from '@/components/themed-text';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
+import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
 
 export function Screen({ children, tabbed = true }: { children: ReactNode; tabbed?: boolean }) {
@@ -15,9 +15,9 @@ export function Screen({ children, tabbed = true }: { children: ReactNode; tabbe
       style={{ flex: 1, backgroundColor: c.background }}
       contentInsetAdjustmentBehavior="automatic"
       contentContainerStyle={{
-        paddingTop: insets.top + Spacing.two,
-        paddingBottom: insets.bottom + (tabbed ? BottomTabInset : 0) + Spacing.five,
-        paddingHorizontal: Spacing.three,
+        paddingTop: insets.top + Spacing.four,
+        paddingBottom: insets.bottom + (tabbed ? BottomTabInset + 88 : 0) + Spacing.five,
+        paddingHorizontal: Spacing.four,
         alignItems: 'center',
       }}>
       <View style={styles.column}>{children}</View>
@@ -28,7 +28,7 @@ export function Screen({ children, tabbed = true }: { children: ReactNode; tabbe
 export function Card({ children, style, tone = 'plain' }: { children: ReactNode; style?: StyleProp<ViewStyle>; tone?: 'plain' | 'sun' | 'tint' }) {
   const c = useTheme();
   const bg = tone === 'sun' ? c.sunSoft : tone === 'tint' ? c.backgroundSelected : c.backgroundElement;
-  return <View style={[styles.card, { backgroundColor: bg, borderColor: c.border }, style]}>{children}</View>;
+  return <View style={[styles.card, { backgroundColor: bg, borderColor: c.border, ...(tone === 'plain' ? { paddingHorizontal: 0 } : {}) }, style]}>{children}</View>;
 }
 
 export function Label({ children }: { children: ReactNode }) {
@@ -167,14 +167,14 @@ export function Disclaimer() {
 }
 
 const styles = StyleSheet.create({
-  column: { width: '100%', maxWidth: MaxContentWidth, gap: Spacing.three },
-  card: { borderRadius: 20, padding: Spacing.three, gap: Spacing.two, borderWidth: StyleSheet.hairlineWidth },
-  label: { textTransform: 'uppercase', letterSpacing: 0.8, fontSize: 12 },
-  big: { fontSize: 44, lineHeight: 50, fontWeight: 700 },
+  column: { width: '100%', maxWidth: MaxContentWidth, gap: Spacing.four },
+  card: { borderRadius: 0, padding: Spacing.four, gap: 12, borderTopWidth: 1 },
+  label: { textTransform: 'uppercase', letterSpacing: 1.8, fontSize: 12 },
+  big: { fontFamily: Fonts.serif, fontSize: 80, lineHeight: 88, fontWeight: 400 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  button: { minHeight: 50, borderRadius: 14, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.three },
+  button: { minHeight: 50, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.four },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1, minHeight: 38, justifyContent: 'center' },
+  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 4, borderWidth: 1, minHeight: 38, justifyContent: 'center' },
   bar: { height: 12, borderRadius: 999, overflow: 'hidden' },
-  banner: { borderRadius: 14, padding: Spacing.three },
+  banner: { borderRadius: 4, padding: Spacing.three },
 });
