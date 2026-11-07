@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 import { View } from 'react-native';
 
+import { SunMark } from '@/components/cs/sun-mark';
 import { UVChart } from '@/components/cs/charts';
 import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
@@ -72,8 +73,12 @@ export default function Home() {
 
   return (
     <Screen>
-      <View>
-        <ThemedText type="subtitle">Cloudscreen</ThemedText>
+      <View style={{ gap: 12 }}>
+        <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: c.border, paddingBottom: 16 }}>
+          <Label>Cloudscreen / Your sun journal</Label>
+          <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</ThemedText>
+        </Row>
+        <ThemedText type="title">A little sun sense.</ThemedText>
         <Muted>
           {place.name} · {mode === 'forecast' ? 'forecast' : mode === 'demo' ? 'demo (offline physics)' : 'physics fallback'}
           {forecast && mode === 'forecast' ? ` · updated ${fmtTime(forecast.fetchedAt)}` : ''}
@@ -88,11 +93,12 @@ export default function Home() {
       {reading.clamped ? <Banner tone="tint" text="The forecast value looked wrong and was limited to a physically plausible range." /> : null}
       {stale ? <Banner tone="tint" text="Forecast data is more than 3 hours old." /> : null}
 
-      <Card>
-        <Label>Current UV index</Label>
+      <Card tone="tint">
+        <Label>01 / Under this sky</Label>
+        <Muted>Current UV index</Muted>
         <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
-          <Big color={cat.color}>{reading.uvi.toFixed(1)}</Big>
-          <ThemedText type="smallBold" style={{ color: cat.color, fontSize: 18 }}>
+          <Row style={{ flexWrap: 'wrap', flex: 1 }}><Big>{reading.uvi.toFixed(1)}</Big><SunMark size={96} /></Row>
+          <ThemedText type="smallBold" style={{ color: c.text, fontSize: 18 }}>
             {cat.label}
           </ThemedText>
         </Row>
@@ -101,7 +107,7 @@ export default function Home() {
 
       <Card tone="sun">
         <Row style={{ justifyContent: 'space-between' }}>
-          <Label>Time to burn now (est.)</Label>
+          <Label>02 / Time to burn (est.)</Label>
           <Muted>{preset.label}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
@@ -121,7 +127,7 @@ export default function Home() {
       </Card>
 
       <Card>
-        <Label>Today</Label>
+        <Label>03 / Your day outside</Label>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>Estimated burn progress</ThemedText>
           <ThemedText type="smallBold">{fmtPct(todayFraction)}</ThemedText>
@@ -143,7 +149,7 @@ export default function Home() {
       </Card>
 
       <Card>
-        <Label>Sunscreen</Label>
+        <Label>04 / A layer of care</Label>
         <ThemedText>
           {lastSunscreen ? `SPF ${lastSunscreen.spfLabel} · applied ${fmtTime(lastSunscreen.appliedAt)} (${fmtMinutes((now - lastSunscreen.appliedAt) / 60_000)} ago)` : 'None logged today'}
         </ThemedText>

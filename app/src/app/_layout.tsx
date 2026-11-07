@@ -1,4 +1,5 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
+import { useFonts } from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
 import { AppState, useColorScheme } from 'react-native';
@@ -32,12 +33,16 @@ function SessionRunner() {
 export default function RootLayout() {
   const scheme = useColorScheme();
   const hydrated = useHydrated();
+  const [fontsLoaded, fontError] = useFonts({
+    GildaDisplay: require('../../assets/fonts/GildaDisplay-Regular.ttf'),
+    Karla: require('../../assets/fonts/Karla.ttf'),
+  });
 
   useEffect(() => {
-    if (hydrated) SplashScreen.hideAsync().catch(() => {});
-  }, [hydrated]);
+    if (hydrated && (fontsLoaded || fontError)) SplashScreen.hideAsync().catch(() => {});
+  }, [hydrated, fontsLoaded, fontError]);
 
-  if (!hydrated) return null;
+  if (!hydrated || (!fontsLoaded && !fontError)) return null;
 
   return (
     <ThemeProvider value={scheme === 'dark' ? DarkTheme : DefaultTheme}>

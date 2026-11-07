@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
+import { SunMark } from '@/components/cs/sun-mark';
 import { Button, Card, Chips, Label, Muted, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
@@ -40,7 +41,9 @@ export default function Onboarding() {
   return (
     <Screen tabbed={false}>
       <View style={{ gap: 6, marginTop: 24 }}>
-        <ThemedText type="subtitle">Cloudscreen</ThemedText>
+        <SunMark />
+        <Label>Welcome to Cloudscreen</Label>
+        <ThemedText type="title">Make room for the outdoors.</ThemedText>
         <Muted>Tracks the UV that actually reaches your skin: clouds, shade, posture and sunscreen wearing off. Then learns your skin.</Muted>
       </View>
 

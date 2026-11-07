@@ -8,7 +8,7 @@ import {
 } from 'expo-router/ui';
 import { Pressable, View, StyleSheet, type PressableProps } from 'react-native';
 
-import { MaxContentWidth, Spacing } from '@/constants/theme';
+import { Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -42,11 +42,11 @@ export default function AppTabs() {
 
 export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
-    <Pressable {...(props as PressableProps)} style={({ pressed }) => pressed && styles.pressed}>
+    <Pressable {...(props as PressableProps)} style={({ pressed }) => [{ flex: 1 }, pressed && styles.pressed]}>
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
-        <ThemedText type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+        <ThemedText style={{ fontSize: 12 }} type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
           {children}
         </ThemedText>
       </ThemedView>
@@ -59,7 +59,7 @@ export function CustomTabList(props: TabListProps) {
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
         <ThemedText type="smallBold" style={styles.brandText}>
-          Cloudscreen
+          CS
         </ThemedText>
 
         {props.children}
@@ -74,31 +74,38 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 0,
     width: '100%',
-    padding: Spacing.three,
+    padding: Spacing.two,
     justifyContent: 'center',
     alignItems: 'center',
     flexDirection: 'row',
   },
   innerContainer: {
     paddingVertical: Spacing.two,
-    paddingHorizontal: Spacing.five,
-    borderRadius: Spacing.five,
+    paddingHorizontal: Spacing.two,
+    borderRadius: 0,
+    borderTopWidth: 2,
+    borderTopColor: '#869FB2',
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
-    gap: Spacing.two,
+    gap: 2,
     maxWidth: MaxContentWidth,
   },
   brandText: {
-    marginRight: 'auto',
+    marginRight: 6,
+    fontFamily: Fonts.serif,
+    fontSize: 24,
   },
   pressed: {
     opacity: 0.7,
   },
   tabButtonView: {
     paddingVertical: Spacing.one,
-    paddingHorizontal: Spacing.three,
-    borderRadius: Spacing.three,
+    paddingHorizontal: 4,
+    alignItems: 'center',
+    minHeight: 44,
+    justifyContent: 'center',
+    borderRadius: 0,
   },
   externalPressable: {
     flexDirection: 'row',
