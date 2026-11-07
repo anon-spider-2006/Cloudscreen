@@ -38,7 +38,7 @@ const OM_VARS = 'uv_index,uv_index_clear_sky,cloud_cover_low,cloud_cover_mid,clo
 export async function fetchForecast(lat: number, lon: number, signal?: AbortSignal): Promise<Forecast> {
   const url =
     `https://api.open-meteo.com/v1/forecast?latitude=${lat.toFixed(4)}&longitude=${lon.toFixed(4)}` +
-    `&hourly=${OM_VARS}&past_days=1&forecast_days=2&timezone=GMT`;
+    `&hourly=${OM_VARS}&past_days=2&forecast_days=7&timezone=GMT`;
   const res = await fetch(url, { signal });
   if (!res.ok) throw new Error(`Open-Meteo ${res.status}`);
   const j = (await res.json()) as {

@@ -22,6 +22,14 @@
  *
  * Albedo only matters for snow, sand and water. Grass and pavement reflect a few
  * percent of UV. Don't oversell the surface picker.
+ *
+ * Shade: a shade structure blocks the direct beam entirely and a fraction of
+ * the diffuse sky. ASSUMPTION: the sky term is scaled by a visible-sky factor
+ * V (umbrella 0.5, dense canopy 0.3). Ground reflection is left unshaded because
+ * the surrounding ground is usually still sunlit, which is why shade at the beach
+ * protects much less than people expect.
+ *
+ *   G_shade = [V · (1 − f_dir) · (1 + cos β)/2  +  ρ · (1 − cos β)/2] · K_snow
  */
 import { DEG } from './solar.ts';
 
@@ -44,6 +52,14 @@ export const POSTURES = {
   lying: 0,
 } as const;
 export type Posture = keyof typeof POSTURES;
+
+/** Visible-sky factor V for diffuse UV under shade. Direct beam is blocked whenever shaded. Assumptions, not fits. */
+export const SHADES = {
+  none: { skyView: 1, label: 'Open sun' },
+  umbrella: { skyView: 0.5, label: 'Umbrella / awning' },
+  dense: { skyView: 0.3, label: 'Dense trees / covered porch' },
+} as const;
+export type Shade = keyof typeof SHADES;
 
 /** Fraction of global horizontal erythemal UV that arrives as direct beam. */
 export function directFraction(szaDeg: number, cmf = 1): number {
@@ -75,14 +91,17 @@ export interface GeometryInput {
   surface?: Surface;
   /** Cloud modification factor; shifts the direct/diffuse split. */
   cmf?: number;
+  /** Shade over the person. Default 'none'. */
+  shade?: Shade;
 }
 
-export function geometryFactor({ szaDeg, posture = 'upright', tiltDeg, surface = 'grass', cmf = 1 }: GeometryInput): number {
+export function geometryFactor({ szaDeg, posture = 'upright', tiltDeg, surface = 'grass', cmf = 1, shade = 'none' }: GeometryInput): number {
   if (szaDeg >= 90) return 0;
   const beta = (tiltDeg ?? POSTURES[posture]) * DEG;
   const rho = SURFACES[surface].albedo;
   const fDir = directFraction(szaDeg, cmf);
-  const sky = fDir * directTiltRatio(szaDeg, beta / DEG) + (1 - fDir) * (1 + Math.cos(beta)) / 2;
+  const direct = shade === 'none' ? fDir * directTiltRatio(szaDeg, beta / DEG) : 0;
+  const sky = direct + SHADES[shade].skyView * (1 - fDir) * (1 + Math.cos(beta)) / 2;
   const ground = rho * (1 - Math.cos(beta)) / 2;
   const kSnow = surface === 'snow' ? 1 + 0.35 * rho : 1;
   return (sky + ground) * kSnow;
