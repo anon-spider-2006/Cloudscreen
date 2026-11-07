@@ -72,7 +72,7 @@ export function Button({
 }) {
   const c = useTheme();
   const bg = kind === 'primary' ? c.tint : kind === 'danger' ? c.danger : kind === 'sun' ? c.sun : c.backgroundSelected;
-  const fg = kind === 'secondary' ? c.text : kind === 'sun' ? '#2A1E00' : c.onTint;
+  const fg = kind === 'secondary' ? c.text : kind === 'sun' ? c.onSun : c.onTint;
   return (
     <Pressable
       accessibilityRole="button"
@@ -137,7 +137,7 @@ export function Bar({ fraction, color }: { fraction: number; color: string }) {
 export function Banner({ text, onPress, tone = 'sun' }: { text: string; onPress?: () => void; tone?: 'sun' | 'danger' | 'tint' }) {
   const c = useTheme();
   const bg = tone === 'danger' ? c.danger : tone === 'tint' ? c.tint : c.sun;
-  const fg = tone === 'sun' ? '#2A1E00' : c.onTint;
+  const fg = tone === 'sun' ? c.onSun : c.onTint;
   return (
     <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={[styles.banner, { backgroundColor: bg }]}>
       <ThemedText type="smallBold" style={{ color: fg }}>

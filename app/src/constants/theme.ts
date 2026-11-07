@@ -1,5 +1,6 @@
 /**
- * Cloudscreen design tokens. Blue + sun yellow (§16.1), lighter in light mode, deeper in dark mode.
+ * Cloudscreen design tokens (§16.1). Apothecary palette: honey yellow, warm black, cream and kraft,
+ * with a botanical green. Black buttons in light mode, honey buttons in dark mode.
  */
 
 import '@/global.css';
@@ -26,11 +27,11 @@ export type Palette = (typeof Colors)['light'] | (typeof Colors)['dark'];
 
 /** WHO UV index categories (§16.2). Color never carries meaning alone: always paired with the label. */
 export function uvCategory(uvi: number): { label: string; color: string } {
-  if (uvi < 3) return { label: 'Low', color: '#3BA55C' };
-  if (uvi < 6) return { label: 'Moderate', color: '#E8B923' };
-  if (uvi < 8) return { label: 'High', color: '#F07F1F' };
-  if (uvi < 11) return { label: 'Very high', color: '#DD3C35' };
-  return { label: 'Extreme', color: '#8E44AD' };
+  if (uvi < 3) return { label: 'Low', color: '#6E9B45' };
+  if (uvi < 6) return { label: 'Moderate', color: '#F2B705' };
+  if (uvi < 8) return { label: 'High', color: '#E8781C' };
+  if (uvi < 11) return { label: 'Very high', color: '#C8372D' };
+  return { label: 'Extreme', color: '#7B3F8C' };
 }
 
 /** Color for a burn fraction (0–1+). */
@@ -38,7 +39,7 @@ export function fractionColor(f: number, c: Palette): string {
   if (f >= 1) return c.danger;
   if (f >= 0.8) return c.warning;
   if (f >= 0.5) return c.sun;
-  return c.tint;
+  return c.calm;
 }
 
 export const Fonts = {
