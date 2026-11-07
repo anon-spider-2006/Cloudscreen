@@ -10,7 +10,7 @@
  * phototype is self-reported and unreliable, so c_user is calibrated from
  * next-day redness (calibration.ts). Our I→VI span is 4×.
  */
-import { skinIrradiance, geometryFactor, type Posture, type Surface } from './exposure.ts';
+import { skinIrradiance, geometryFactor, type Posture, type Shade, type Surface } from './exposure.ts';
 import { effectiveSPF, wearRate, type Activity, type FilmState } from './sunscreen.ts';
 
 export type SkinType = 1 | 2 | 3 | 4 | 5 | 6;
@@ -44,7 +44,23 @@ export interface ExposureSettings {
   posture: Posture;
   surface: Surface;
   activity: Activity;
+  /** Default 'none'. */
+  shade?: Shade;
 }
+
+/** One-tap settings bundles for common outings. */
+export const PRESETS = {
+  walk: { label: 'Walk / errands', posture: 'upright', surface: 'pavement', activity: 'dry', shade: 'none' },
+  run: { label: 'Run / cycle', posture: 'upright', surface: 'pavement', activity: 'sweating', shade: 'none' },
+  picnic: { label: 'Park / picnic', posture: 'upright', surface: 'grass', activity: 'dry', shade: 'none' },
+  beach: { label: 'Beach', posture: 'lying', surface: 'sand', activity: 'swimming', shade: 'none' },
+  pool: { label: 'Pool / lake', posture: 'lying', surface: 'water', activity: 'swimming', shade: 'none' },
+  ski: { label: 'Ski / snow', posture: 'upright', surface: 'snow', activity: 'sweating', shade: 'none' },
+} as const satisfies Record<string, ExposureSettings & { label: string }>;
+export type Preset = keyof typeof PRESETS;
+
+/** Sites tracked in parallel for the "burns first" display. Upright = face/arms, shoulders = top surfaces. */
+export const WORST_SITE_POSTURES: readonly Posture[] = ['upright', 'shoulders'];
 
 export interface SessionState {
   t: number; // epoch ms
@@ -66,7 +82,7 @@ const MAX_SUBSTEP_S = 60;
  * a new state. Sub-steps so film degradation and dose stay coupled.
  */
 export function advance(s: SessionState, dtSec: number, env: Environment, x: ExposureSettings): SessionState {
-  const g = geometryFactor({ szaDeg: env.szaDeg, posture: x.posture, surface: x.surface, cmf: env.cmf });
+  const g = geometryFactor({ szaDeg: env.szaDeg, posture: x.posture, surface: x.surface, cmf: env.cmf, shade: x.shade });
   const E = skinIrradiance(env.uvi, g); // W/m²
   let { doseSED, ambientSED } = s;
   let film = s.film ? { ...s.film } : null;
@@ -86,6 +102,23 @@ export function advance(s: SessionState, dtSec: number, env: Environment, x: Exp
     remaining -= h;
   }
   return { t: s.t + dtSec * 1000, doseSED, ambientSED, film };
+}
+
+/** Every factor behind the current dose rate, for the "Why this number?" panel. */
+export interface RateBreakdown {
+  uvi: number;
+  geometry: number;
+  spfEff: number;
+  /** SED per minute on skin, unprotected and under the current film. */
+  sedPerMinUnprotected: number;
+  sedPerMin: number;
+}
+
+export function explainRate(env: Environment, x: ExposureSettings, film: FilmState | null): RateBreakdown {
+  const geometry = geometryFactor({ szaDeg: env.szaDeg, posture: x.posture, surface: x.surface, cmf: env.cmf, shade: x.shade });
+  const spfEff = effectiveSPF(film);
+  const sedPerMinUnprotected = (skinIrradiance(env.uvi, geometry) * 60) / 100;
+  return { uvi: env.uvi, geometry, spfEff, sedPerMinUnprotected, sedPerMin: sedPerMinUnprotected / spfEff };
 }
 
 export function burnFraction(s: SessionState, p: SkinProfile): number {

@@ -50,7 +50,27 @@ The application must clearly distinguish between three quantities (defined in §
 
 Because sunscreen effectiveness, clothing, shade, and personal susceptibility cannot be measured directly by a phone, all personalized estimates must be presented as approximate rather than clinically validated measurements.
 
-## 1.4 Target Audience
+## 1.4 Differentiation
+
+Forecast-only apps such as Sunwise (iOS) turn the UV index and skin type into "minutes left". They assume open sky and bare skin, ignore sunscreen, keep no history, and say they can't account for shade. Cloudscreen gives the same instant answer (§7.2, "Time to burn now"), then goes further on everything such apps leave out:
+
+| | Forecast-only apps | Cloudscreen |
+|---|---|---|
+| Instant "time to burn" | Yes | Yes, with clouds and your sunscreen |
+| Clouds | Assumes clear sky (conservative) | Cloud-adjusted forecast; three-layer cloud model in physics/demo |
+| Sunscreen | Not modeled | Effective SPF that wears off and breaks down over time |
+| Shade | "Can't know you were under a tree" | One-tap shade levels (§4.5) |
+| Body site | Single number | Tracks face/arms and shoulders; shows which burns first |
+| Posture, ground, snow, altitude | Not modeled | Modeled |
+| History | None | Sessions, plus logging time after the fact |
+| Personal threshold | Skin-type table only | Skin-type starting point + morning calibration |
+| Planning | Hourly + 7-day UV | Hourly + 7-day UV, plus best-time planner with your own burn estimate |
+| Transparency | Explains SED arithmetic | "Why this number?" breakdown on every reading |
+| Platforms | iPhone, Apple Watch, widgets | iOS and Android (widgets/Watch deferred, §22.5) |
+
+**Pitch line:** *Forecast apps tell you how long you could last under a clear sky with bare skin. Cloudscreen tracks what actually happened: clouds, shade, your posture, and sunscreen wearing off. Then it learns your skin.*
+
+## 1.5 Target Audience
 
 - Individuals who spend significant time outdoors.
 - Runners, hikers, cyclists, and outdoor athletes.
@@ -114,7 +134,7 @@ On first launch, users complete a short onboarding flow to configure their expos
 ### Optional Inputs
 
 - Usual sunscreen amount (light, typical, generous); default typical = 1 mg/cm².
-- Default posture (upright, shoulders, lying) and surface (grass, pavement, water, sand, snow).
+- Default activity preset (§7.3), which sets posture, surface and activity together. Default `walk`.
 - Water-resistant sunscreen (yes/no).
 - Typical outdoor activity patterns.
 - Clothing and shade habits.
@@ -197,7 +217,7 @@ The model uses three cloud layers rather than one total cover. The fit (§13.5) 
 
 ### Provider
 
-**Open-Meteo** forecast API (`fetchForecast` in `uvSource.ts`): hourly values, `past_days=1`, `forecast_days=2`, timezone GMT. Hours with any missing variable are dropped.
+**Open-Meteo** forecast API (`fetchForecast` in `uvSource.ts`): hourly values, `past_days=2` (for logging time after the fact, §4.9), `forecast_days=7` (for the 7-day view and planner, §7.5), timezone GMT. Hours with any missing variable are dropped.
 
 Open-Meteo hourly UV values are **means over the preceding hour**. The model places each value at the middle of that hour (timestamp − 30 min) and interpolates linearly between those midpoints. Before the first or after the last point it holds the nearest value.
 
@@ -381,6 +401,37 @@ Albedo matters only for snow, sand and to a lesser degree water. For upright ski
 
 **Example:** the same 30 minutes at UVI 6 (SZA 30°) gives an **unprotected skin dose** of about **0.92 SED** upright, compared with 2.7 SED ambient.
 
+### Shade
+
+Shade blocks the direct beam entirely and a share of the scattered sky light. Ground reflection is left unshaded, because the ground around a shaded person is usually still in sun:
+
+\[
+G_{shade} = \left[V \cdot (1-f_{dir})\tfrac{1+\cos\beta}{2} + \rho\,\tfrac{1-\cos\beta}{2}\right] \cdot K_{snow}
+\]
+
+| Shade (`SHADES`) | Visible sky V | G upright, grass (SZA 30°) | G upright, sand |
+|---|---:|---:|---:|
+| `none` (default) | 1.0 | 0.34 | 0.43 |
+| `umbrella` (umbrella, awning) | 0.5 | 0.13 | 0.22 |
+| `dense` (dense trees, covered porch) | 0.3 | 0.08 | 0.17 |
+
+*V values are assumptions, not fitted to data.* The model does reproduce the well-known effect that **an umbrella on sand only halves the dose to upright skin**, because sand reflects UV up from below. The UI should say this when shade is chosen on sand, water or snow.
+
+Shade is a per-interval setting, like posture. Changing it splits the interval.
+
+### Worst Site ("burns first")
+
+Sunburn is local: different body sites get very different doses. The app tracks **two sites in parallel** (`WORST_SITE_POSTURES`):
+
+- **Face/arms:** `upright`.
+- **Shoulders, top of head, nose bridge:** `shoulders`.
+
+Both run through `advance()` with the same environment and sunscreen. The UI headlines whichever site has the higher burn fraction.
+
+**Example:** UVI 8, SZA 25°, grass, skin type II, no sunscreen. Shoulders reach 1.0 in about **28 min**; face and arms in about **80 min**. The app shows *"Your shoulders will burn first, in about 28 min."*
+
+When the preset is lying down, only the `lying` site is tracked.
+
 ## 4.6 Dose Quantities
 
 | Quantity | Definition | Model field | Primary use |
@@ -441,6 +492,18 @@ SPF 30 buys hours, not 30×, because typical application and wear-off reduce its
 Users can explicitly start, pause, resume, and end an outdoor session.
 
 Manual tracking is the authoritative MVP method for determining outdoor time.
+
+### Logging Time After the Fact
+
+Users can add a session they forgot to track: "I was out 12:00–14:00 at the beach."
+
+- Allowed for any time within the forecast's past window: today and yesterday (`past_days=2`).
+- The user picks start, end, location (default: current), activity preset, shade, and any sunscreen applied with its time.
+- The app replays the interval through `advance()` using the stored hourly forecast for those hours. This is the same calculation as a live session.
+- Retroactive intervals are stored with `exposureState: OUTDOOR_CONFIRMED` (the user confirmed being outside), `calculationStatus: "estimated"`, and the session's `trackingMode: "retroactive"`.
+- They count toward daily totals and feed the morning check-in like live sessions.
+- They must not overlap an existing session (CALC-003). The UI offers to trim or merge.
+- The UI labels them "Added later · from forecast data", because the UV values were forecasts, not measurements (§13.3).
 
 ### Automatic Tracking — Future Feature
 
@@ -570,7 +633,8 @@ How each event affects the model:
 |---|---|
 | Swimming, heavy sweating | Sets the activity to `swimming` or `sweating`, which speeds sunscreen wear (§5.2) |
 | Towel drying | Logged only. *Proposed:* prompt the user to reapply |
-| Shade, clothing, hat | Logged only. Not modeled in the MVP |
+| Entered / left shade | Sets `shade` (`umbrella` or `dense`, back to `none` on leaving), which removes direct sun and part of the sky light (§4.5) |
+| Clothing, hat | Logged only. Not modeled in the MVP |
 
 None of these events ever changes the ambient dose.
 
@@ -669,6 +733,7 @@ Provide an immediate overview of current UV conditions and accumulated exposure.
 - Current UV index.
 - UV risk category.
 - Location, weather data timestamp, and UV source mode (forecast, physics or demo).
+- **"Time to burn now" card**, shown before any session is started (see below).
 - Today's estimated burn progress (% of estimated threshold) and projected minutes remaining.
 - Today's unprotected skin dose and ambient dose in SED, with a description of what SED is.
 - Total confirmed outdoor time.
@@ -677,6 +742,29 @@ Provide an immediate overview of current UV conditions and accumulated exposure.
 - Quick sunscreen logging button.
 - Start or resume outdoor tracking button.
 - Daily UV trend chart.
+- "Why this number?" link on the time-to-burn card and the current dose rate (§7.7).
+
+### "Time to burn now"
+
+The app's instant answer, available the moment it opens with no session and no setup beyond skin type.
+
+- Runs `project()` from a fresh `newSession(now)`, using the forecast as `envAt(t)`, the default preset, and today's dose so far added on.
+- Shows two numbers:
+  - **Unprotected:** no film.
+  - **With your sunscreen:** a new film from the profile defaults (SPF, filter, amount).
+- Each number is for the worst site (§4.5).
+- If the estimate does not reach 100% before sunset, show "Not expected to reach your estimated threshold today" instead of a time. Never say "safe".
+- Refreshes when the forecast hour changes, or when the preset or location changes.
+
+```text
+┌──────────────────────────────┐
+│ TIME TO BURN NOW  (est.)     │
+│  Bare skin      ~28 min      │
+│  With SPF 30    ~1 h 45 min  │
+│  Shoulders burn first · Walk │
+│  Why this number? ›          │
+└──────────────────────────────┘
+```
 
 ### Example Layout
 
@@ -729,6 +817,10 @@ Provide an immediate overview of current UV conditions and accumulated exposure.
 
 **HOME-007:** Show the pending morning redness check-in when one is due (§6.4).
 
+**HOME-008:** Show "Time to burn now" (unprotected and with default sunscreen) without requiring a session, within 2 seconds of launch when a cached forecast exists.
+
+**HOME-009:** Offer "Add time I was outside" for logging after the fact (§4.9).
+
 ---
 
 ## 7.3 Active Tracking Screen
@@ -746,7 +838,21 @@ Display exposure accumulation during an outdoor session.
 - Current estimated dose rate.
 - Projected burn-progress and effective-SPF curve (from the `project()` timeline).
 - Sunscreen status: time since application and current effective SPF.
-- Exposure settings: posture (upright, shoulders, lying), surface (grass, pavement, water, sand, snow), activity (dry, sweating, swimming).
+- **Activity preset chips** (`PRESETS`), one tap each:
+
+  | Preset | Posture | Surface | Activity |
+  |---|---|---|---|
+  | Walk / errands (default) | upright | pavement | dry |
+  | Run / cycle | upright | pavement | sweating |
+  | Park / picnic | upright | grass | dry |
+  | Beach | lying | sand | swimming |
+  | Pool / lake | lying | water | swimming |
+  | Ski / snow | upright | snow | sweating |
+
+  The individual posture, surface and activity can still be edited under "Customize". Altitude is applied automatically from the forecast elevation, which matters most for Ski.
+- **Shade toggle:** open sun, umbrella, or dense shade (§4.5).
+- **Worst-site line:** "Shoulders burn first · ~28 min", or both sites side by side when expanded.
+- "Why this number?" on the dose rate (§7.7).
 - Pause and end controls.
 - Log sunscreen action.
 
@@ -771,7 +877,8 @@ Display exposure accumulation during an outdoor session.
 │ SUNSCREEN                    │
 │ SPF 50 • 65 min ago • now ~6 │
 │                              │
-│ Upright • Grass • Dry   [✎]  │
+│ Walk • Open sun         [✎]  │
+│ Shoulders burn first         │
 │                              │
 │ [ Log Sunscreen ]            │
 │                              │
@@ -783,7 +890,8 @@ Display exposure accumulation during an outdoor session.
 
 - Session duration advances while tracking is active.
 - Dose calculations use timestamped environmental observations.
-- Changing posture, surface or activity splits the interval and applies from that moment forward.
+- Changing preset, posture, surface, activity or shade splits the interval and applies from that moment forward.
+- Each site (§4.5) keeps its own `SessionState`. Burn-progress alerts use the worst site.
 - Pausing stops dose accumulation.
 - Ending a session saves its final intervals and totals.
 - Closing or backgrounding the app must not silently end an active session.
@@ -840,6 +948,8 @@ Each session should display:
 
 **HIST-005:** Recalculate historical summaries after edits.
 
+**HIST-006:** Support adding sessions after the fact for today and yesterday (§4.9), visibly labeled as added later from forecast data.
+
 ---
 
 ## 7.5 UV Forecast Screen
@@ -851,32 +961,39 @@ Help users understand anticipated UV intensity and plan outdoor activities.
 ### Components
 
 - Current UV index.
-- Hourly UV forecast.
+- Hourly UV forecast for today and tomorrow.
+- **7-day forecast:** daily peak UVI and the hours above UVI 3, from `forecast_days=7`.
 - UV index peak.
 - Cloud-cover forecast.
 - Sunrise and sunset where available.
-- Optional planned-session dose estimate.
+- Planner (below).
 
-### Planned Exposure Calculator
+### Planner and Best Time
 
 Users enter:
 
-- Planned start time.
-- Planned end time.
-- Location.
-- Expected outdoor duration.
+- Day (up to 7 days ahead) and duration.
+- Activity preset and shade.
+- Planned sunscreen (none, or profile default).
+- Location (default: current).
 
-- Posture, surface and planned sunscreen.
+The app runs `project()` from **every 30-minute start time** between sunrise and sunset for that day, using the forecast as `envAt(t)` and the worst site. It shows:
 
-The application runs `project()` from the planned start, using the forecast as `envAt(t)`. It shows the estimated skin dose, the peak burn progress, and when the estimate would reach 100%, if it does.
+- A strip chart of peak burn progress by start time.
+- The **lowest-UV windows**: the start times with the lowest peak burn progress, highlighted.
+- For a selected start time: estimated skin dose, ambient dose, peak burn progress, and when the estimate would reach 100%, if it does.
+
+The run must take under 1 second on a phone: about 26 runs of 2-minute steps over the chosen duration.
 
 ### Example
 
-A planned 45-minute walk may display:
+A planned 45-minute walk tomorrow may display (illustrative numbers):
 
-> Estimated skin exposure: 0.6 SED (1.8 SED ambient), about 20% of your estimated burn threshold (skin type II, upright). Forecast uncertainty and shade conditions may change actual exposure.
+> 11:00 → about 70% of your estimated burn threshold · 17:00 → about 15%. Lowest-UV windows: before 09:30 and after 16:30. Forecast uncertainty and shade may change actual exposure.
 
-The application must not represent a lower forecast dose as a guarantee that sun protection is unnecessary.
+Wording: say "lowest-UV windows" and "lower estimated exposure". Never "safe times". The application must not represent a lower forecast dose as a guarantee that sun protection is unnecessary.
+
+Forecasts beyond 2 days are less reliable. Mark days 3–7 as "outlook".
 
 ---
 
@@ -888,7 +1005,7 @@ The application must not represent a lower forecast dose as a guarantee that sun
 - Skin type.
 - Personal calibration (`c_user`), shown as "your threshold is about N× the typical value for your skin type", with a reset button and check-in history.
 - Default sunscreen SPF, filter type, amount, water resistance.
-- Default posture and surface.
+- Default activity preset.
 - Units.
 - Timezone behavior.
 
@@ -917,6 +1034,31 @@ The application must not represent a lower forecast dose as a guarantee that sun
 - Data sources.
 - Calculation assumptions.
 - Limitations and disclaimers.
+
+---
+
+## 7.7 "Why this number?"
+
+A bottom sheet that opens from the time-to-burn card, the dose rate, and any session's details. It shows every factor in the chain for the current reading:
+
+```text
+WHY THIS NUMBER?
+  Clear-sky UV (sun 28° from overhead)    9.8
+  × clouds (low 40%, mid 10%)             0.72    from forecast
+  = UV index                              7.1
+  × your shoulders, on grass              0.95
+  ÷ sunscreen SPF 30, now                 6.1     applied 75 min ago
+  = 0.017 SED/min on skin
+  Your estimated threshold                3.0 SED  type II × 1.00
+  → about 28 min left at this UV
+  Assumptions · Model tests · Fit report  ›
+```
+
+Data comes from `readUV()` (`uviClearAllaart`, `cmfLayers`, `cmfObserved`, `mode`, `clamped`) and `explainRate()` (`geometry`, `spfEff`, `sedPerMin`, `sedPerMinUnprotected`).
+
+- In `forecast` mode the cloud row shows the provider's implied cloud effect (`cmfObserved`, forecast ÷ clear sky), labeled "from forecast". The fitted factor is not applied (§3.3).
+- Every row links to its methodology entry, which says whether the value comes from a study or is an assumption.
+- Lines are illustrative above. The real sheet shows live values.
 
 ---
 
@@ -1052,7 +1194,7 @@ The following TypeScript interfaces represent the application's stored objects. 
 ## 10.1 User Profile
 
 ```typescript
-import type { SkinType, FilterType, Posture, Surface, UVMode } from "@/model";
+import type { SkinType, FilterType, Posture, Surface, Shade, Activity, Preset, UVMode } from "@/model";
 
 interface UserProfile {
   id: string;
@@ -1064,8 +1206,7 @@ interface UserProfile {
   defaultFilter: FilterType;   // "photostable" | "chemical"
   defaultAmountMgCm2: number;  // default 1
   defaultWaterResistant: boolean;
-  defaultPosture: Posture;     // default "upright"
-  defaultSurface: Surface;     // default "grass"
+  defaultPreset: Preset;       // default "walk"; sets posture, surface, activity
   uvMode: UVMode;              // default "forecast"
 
   sunscreenReminderMinutes: number;
@@ -1149,13 +1290,18 @@ interface ExposureSession {
 
   trackingMode:
     | "manual"
+    | "retroactive"                  // added after the fact (§4.9)
     | "automatic";
+
+  preset: Preset;                    // preset at session start
 
   totalOutdoorSeconds: number;
   ambientDoseSED: number;            // horizontal, G = 1
-  unprotectedSkinDoseSED: number;    // model: SessionState.ambientSED
-  protectedSkinDoseSED: number;      // model: SessionState.doseSED
-  peakBurnFraction: number;          // fed to calibration
+  unprotectedSkinDoseSED: number;    // worst site; model: SessionState.ambientSED
+  protectedSkinDoseSED: number;      // worst site; model: SessionState.doseSED
+  peakBurnFraction: number;          // worst site; fed to calibration
+  worstSite: Posture;                // site that reached the highest fraction
+  siteStates: Partial<Record<Posture, SessionState>>; // one per tracked site (§4.5)
   cUserAtSession: number;            // c_user used for this session's prediction
   thresholdsFired: number[];         // e.g. [0.5, 0.8]
 
@@ -1193,6 +1339,7 @@ interface ExposureInterval {
   posture: Posture;
   surface: Surface;
   activity: Activity;              // "dry" | "sweating" | "swimming"
+  shade: Shade;                    // "none" | "umbrella" | "dense"
   geometryFactor: number | null;
   effectiveSPFStart: number | null;
   effectiveSPFEnd: number | null;
@@ -1293,8 +1440,7 @@ CREATE TABLE user_profiles (
     default_filter TEXT NOT NULL DEFAULT 'photostable',
     default_amount_mg_cm2 REAL NOT NULL DEFAULT 1,
     default_water_resistant INTEGER NOT NULL DEFAULT 0,
-    default_posture TEXT NOT NULL DEFAULT 'upright',
-    default_surface TEXT NOT NULL DEFAULT 'grass',
+    default_preset TEXT NOT NULL DEFAULT 'walk',
     uv_mode TEXT NOT NULL DEFAULT 'forecast',
     sunscreen_reminder_minutes INTEGER NOT NULL,
     automatic_tracking_enabled INTEGER NOT NULL,
@@ -1314,6 +1460,9 @@ CREATE TABLE exposure_sessions (
     unprotected_skin_dose_sed REAL NOT NULL DEFAULT 0,
     protected_skin_dose_sed REAL NOT NULL DEFAULT 0,
     peak_burn_fraction REAL NOT NULL DEFAULT 0,
+    preset TEXT NOT NULL,
+    worst_site TEXT,
+    site_states_json TEXT,
     c_user_at_session REAL NOT NULL,
     thresholds_fired TEXT NOT NULL DEFAULT '[]',
     model_state_json TEXT,
@@ -1357,6 +1506,7 @@ CREATE TABLE exposure_intervals (
     posture TEXT NOT NULL,
     surface TEXT NOT NULL,
     activity TEXT NOT NULL,
+    shade TEXT NOT NULL DEFAULT 'none',
     geometry_factor REAL,
     effective_spf_start REAL,
     effective_spf_end REAL,
@@ -1429,12 +1579,15 @@ The engine is implemented in `app/src/model/` and re-exported from `index.ts`, s
 | `readUV(query, mode, { forecast, demoClouds })` | `uvSource.ts` | UVI, SZA and cloud factor right now → `UVReading` (an `Environment` plus mode, clamp flag and diagnostics) |
 | `clearSkyUVIAt(date, lat, lon, opts)` | `clearSky.ts` | Allaart clear-sky UVI |
 | `cloudModificationFactor(layers)` | `cmf.ts` | Fitted layered cloud factor |
-| `geometryFactor({ szaDeg, posture, surface, cmf })` | `exposure.ts` | G |
+| `geometryFactor({ szaDeg, posture, surface, cmf, shade })` | `exposure.ts` | G |
 | `newFilm(app)`, `effectiveSPF(film)` | `sunscreen.ts` | Sunscreen film and its current SPF |
 | `newSession(t, film?)` | `dose.ts` | Empty `SessionState` |
 | `advance(state, dtSec, env, settings)` | `dose.ts` | Pure step forward in time |
 | `burnFraction(state, profile)` | `dose.ts` | Protected dose / (MED_type × c_user) |
 | `project(state, envAt, settings, profile, opts)` | `dose.ts` | Minutes to burn, plus a timeline |
+| `explainRate(env, settings, film)` | `dose.ts` | Factors behind the dose rate, for "Why this number?" (§7.7) |
+| `PRESETS`, `WORST_SITE_POSTURES` | `dose.ts` | Activity presets (§7.3); sites tracked in parallel (§4.5) |
+| `SHADES` | `exposure.ts` | Shade levels and visible-sky factors (§4.5) |
 | `updateCUser(c, report)`, `calibrationPromptTime(end)` | `calibration.ts` | Personal calibration |
 
 ## 12.2 Session Loop
@@ -1473,7 +1626,7 @@ For long gaps (for example after the app was backgrounded), the caller must spli
 
 **CALC-004:** Split intervals at pause and resume boundaries.
 
-**CALC-005:** Split intervals when location, forecast hour, posture, surface, activity, or sunscreen state changes.
+**CALC-005:** Split intervals when location, forecast hour, posture, surface, activity, shade, or sunscreen state changes.
 
 **CALC-006:** Keep missing intervals distinct from zero-dose intervals.
 
@@ -1834,7 +1987,7 @@ Privacy must be considered during initial architecture rather than added later.
 
 ### Model Tests (built: `app/src/model/model.test.ts`)
 
-Run from `app/` with `npm run test:model` (`node --test`; Node ≥ 23.6 runs TypeScript directly). Each test checks one physical claim; all 16 pass.
+Run from `app/` with `npm run test:model` (`node --test`; Node ≥ 23.6 runs TypeScript directly). Each test checks one physical claim; all 19 pass.
 
 | Area | Claim checked |
 |---|---|
@@ -1846,6 +1999,9 @@ Run from `app/` with `npm run test:model` (`node --test`; Node ≥ 23.6 runs Typ
 | Dose | 1 h at UVI 8, lying, unprotected = 7.2 SED; type II at UVI 10 reaches 1 MED in ≈ 20 min; SPF 30 extends this by hours, not 30× |
 | Calibration | Pink lowers c, burned lowers it more; no redness at F ≥ 1 nudges up; trivial doses are ignored; bounded at ⅓; prompt at 9:00 next day |
 | UV source | Demo = physics; forecast not multiplied by the cloud factor again; sanity clamp; physics fallback without a forecast |
+| Shade | Blocks the direct beam and part of the sky; less effective on sand because ground reflection is unshaded; passed through `advance()` |
+| Worst site | Shoulders reach the threshold in under half the time of face/arms at high sun |
+| Breakdown and presets | `explainRate` factors multiply to the `advance()` dose rate; every preset is a valid setting |
 
 ### Ambient Dose Conversion (posture `lying`, G = 1, no sunscreen)
 
@@ -1859,7 +2015,7 @@ Run from `app/` with `npm run test:model` (`node --test`; Node ≥ 23.6 runs Typ
 | Negative UV | UVI −1 | Treated as 0 (model clamps) |
 | Negative duration | −60 seconds | No change (model clamps `dtSec` to ≥ 0) |
 
-*Proposed additional model tests:* `project()` respects horizon and target; `readUV` interpolates between hour midpoints; `advance` with a long `dtSec` matches many short steps.
+*Proposed additional model tests:* the planner's best start time falls away from solar noon; replaying a past interval gives the same dose as a live session over it; `project()` respects horizon and target; `readUV` interpolates between hour midpoints; `advance` with a long `dtSec` matches many short steps.
 
 ### Session Logic
 
@@ -1964,7 +2120,8 @@ If environmental data is unavailable, the application must clearly identify inco
 - [ ] Automatic foreground location retrieval.
 - [ ] Manual location selection.
 - [ ] Current UV index display.
-- [ ] Hourly UV forecast.
+- [ ] Hourly UV forecast and 7-day outlook.
+- [ ] Planner with lowest-UV windows (§7.5).
 - [ ] Cloud-cover display.
 - [ ] Manual outdoor session tracking.
 - [ ] Session pause, resume, and end.
@@ -1972,7 +2129,12 @@ If environmental data is unavailable, the application must clearly identify inco
 - [x] Open-Meteo forecast client and UV source modes.
 - [x] Personal calibration logic.
 - [ ] Dose, burn progress and minutes-to-burn wired into the UI.
-- [ ] Posture, surface and activity pickers.
+- [ ] "Time to burn now" card on Home, no session needed (§7.2).
+- [ ] Activity preset chips, plus custom posture/surface/activity (§7.3).
+- [ ] Shade toggle (§4.5; model built).
+- [ ] Worst-site tracking and "burns first" display (§4.5).
+- [ ] Logging time after the fact (§4.9).
+- [ ] "Why this number?" sheet (§7.7; `explainRate` built).
 - [ ] Demo mode with cloud sliders.
 - [ ] Burn-progress notifications (50/80/100%).
 - [ ] Morning redness check-in.
@@ -2132,20 +2294,20 @@ Potential sources include Apple HealthKit and Android Health Connect, subject to
 
 ## 22.3 Smart Exposure Forecasting
 
-Allow users to plan activities and compare expected ambient UV dose across different times.
+The planner and lowest-UV windows are now in the MVP (§7.5). Later additions:
 
-Example:
-
-> Compare the estimated ambient UV exposure for a 45-minute walk at 11 AM versus 5 PM.
+- Calendar integration: flag outdoor events with high estimated exposure.
+- "Leave by" suggestions: start times that keep a planned activity under 50% of the estimated threshold.
 
 ## 22.4 Advanced Protection Modeling
 
-Already in the model: application amount, reapplication, water and sweat wear, body orientation (posture), reflective surfaces, photodegradation.
+Already in the model: application amount, reapplication, water and sweat wear, body orientation (posture), worst-site tracking, shade, reflective surfaces, photodegradation.
 
 Still to explore:
 
 - Clothing coverage (UPF).
-- Shade exposure (shade blocks direct sunlight but not most scattered UV, which is the larger share).
+- Better shade values: measure visible-sky factors for real shade types instead of the assumed 0.5 / 0.3.
+- Sites beyond face/arms and shoulders (back when lying face-down, legs).
 - Per-body-site doses (track face, shoulders and arms separately rather than one posture).
 - Ozone from a data source instead of climatology.
 - Broken-cloud UV enhancement.
@@ -2187,7 +2349,10 @@ Include explanations of:
 | Sunscreen wear and amount assumptions | Effective SPF may be too high or too low | Label as assumptions; always show unprotected dose |
 | Skin-type MED is a rough starting point | Early burn estimates may be wrong for a given user | Cautious "not sure" default; morning calibration; clear "estimate" wording |
 | Users read burn % as a safe limit | False reassurance | Wording rules (§6.3); DNA-damage note for types V–VI |
-| Wrong posture or surface chosen | Dose off by up to 3× | Sensible defaults; one-tap changes on the Track screen |
+| Wrong posture or surface chosen | Dose off by up to 3× | Activity presets; worst-site display; one-tap changes on the Track screen |
+| Shade visible-sky factors are assumed | Shaded dose may be too high or too low | Label as an assumption; warn that shade on sand, water or snow protects less |
+| Retroactive sessions use forecast, not observed, UV | Past dose may be off | Label "Added later · from forecast data"; mark intervals `estimated` |
+| 7-day outlook is uncertain beyond 2 days | Plans based on poor forecasts | Mark days 3–7 as "outlook"; rerun the planner as the day nears |
 | Indoor/outdoor ambiguity | Incorrect exposure duration | Manual tracking for MVP |
 | Sunscreen effectiveness variability | Misleading protected-dose estimates | Keep ambient dose primary |
 | GPS battery consumption | Poor user experience | Adaptive location sampling |
@@ -2214,10 +2379,13 @@ The MVP is complete when:
 10. Users receive configurable sunscreen reminders and burn-progress alerts at 50%, 80% and 100%.
 11. Users receive a morning redness check-in, and their answer updates `c_user`.
 12. Demo mode works fully offline.
-13. Users can view daily totals and completed sessions.
-14. Core flows work on physical iOS and Android devices.
-15. The application clearly communicates that estimates are not medical measurements.
-16. The privacy policy and scientific methodology (including model assumptions and limitations) are accessible within the app.
+13. Home shows "Time to burn now" without a session, and the planner suggests lowest-UV windows up to 7 days ahead.
+14. Shade, presets and worst-site display change the estimates, and "Why this number?" shows every factor.
+15. A user can add a session they forgot to track for today or yesterday.
+16. Users can view daily totals and completed sessions.
+17. Core flows work on physical iOS and Android devices.
+18. The application clearly communicates that estimates are not medical measurements.
+19. The privacy policy and scientific methodology (including model assumptions and limitations) are accessible within the app.
 
 ---
 
@@ -2227,14 +2395,16 @@ The most practical first version is a **manual outdoor-session tracker that uses
 
 The initial user experience should be:
 
-1. Open the app and view the current UV index.
-2. Tap **Start Outdoor Session**. Posture and surface default from the profile.
+1. Open the app and see the current UV index and **time to burn now**: bare skin vs with your sunscreen, worst site first.
+2. Pick a preset (Walk, Beach, Ski…) and tap **Start Outdoor Session**.
 3. Watch estimated burn progress and minutes to burn update over time.
 4. Log sunscreen with one tap and see the projection extend, and the effective SPF fade.
 5. Receive burn-progress and sunscreen reminders.
 6. End the session and review the dose.
 7. Answer the next-morning redness check-in.
-8. View daily and historical exposure trends.
+8. Forgot to track? Add the time afterwards.
+9. Plan tomorrow with the planner's lowest-UV windows.
+10. View daily and historical exposure trends.
 
 For the hackathon demo, run the same flow in **demo mode** with cloud sliders, so it works offline and conditions can be chosen ("Miami, July, noon").
 

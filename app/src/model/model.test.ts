@@ -12,7 +12,10 @@ import {
   cloudModificationFactor,
   CMF_PARAMS,
   effectiveSPF,
+  explainRate,
   geometryFactor,
+  PRESETS,
+  WORST_SITE_POSTURES,
   newFilm,
   newSession,
   photoRetention,
@@ -87,6 +90,43 @@ test('Albedo: snow ≈ 2–3× for vertical skin (ground fills half its view), n
   assert.ok(snow / grass > 2 && snow / grass < 3, `snow/grass ${snow / grass}`);
   // lying flat sees no ground, so only the downwelling boost (+28%) remains
   near(geometryFactor({ szaDeg: 40, surface: 'snow', posture: 'lying' }), 1.28, 1e-9);
+});
+
+test('Shade: blocks direct beam and part of the sky; ground reflection still gets through', () => {
+  const open = geometryFactor({ szaDeg: 30, posture: 'upright' });
+  const umb = geometryFactor({ szaDeg: 30, posture: 'upright', shade: 'umbrella' });
+  const dense = geometryFactor({ szaDeg: 30, posture: 'upright', shade: 'dense' });
+  near(geometryFactor({ szaDeg: 30, posture: 'upright', shade: 'none' }), open, 1e-12);
+  assert.ok(dense < umb && umb < open, `${dense} < ${umb} < ${open}`);
+  // On sand an umbrella protects proportionally less than on grass (reflected UV is unshaded)
+  const ratio = (s: 'grass' | 'sand') =>
+    geometryFactor({ szaDeg: 30, surface: s, shade: 'umbrella' }) / geometryFactor({ szaDeg: 30, surface: s });
+  assert.ok(ratio('sand') > ratio('grass'));
+  // shaded dose is plumbed through advance()
+  const env: Environment = { uvi: 8, szaDeg: 30, cmf: 1 };
+  const x: ExposureSettings = { posture: 'upright', surface: 'grass', activity: 'dry' };
+  const a = advance(newSession(0), 3600, env, x).doseSED;
+  const b = advance(newSession(0), 3600, env, { ...x, shade: 'umbrella' }).doseSED;
+  near(b / a, umb / open, 1e-9);
+});
+
+test('Worst site: shoulders burn before face/arms at high sun', () => {
+  const env = () => ({ uvi: 8, szaDeg: 25, cmf: 1 });
+  const p = { skinType: 2 as const, cUser: 1 };
+  const [up, sh] = WORST_SITE_POSTURES.map(
+    (posture) => project(newSession(0), env, { posture, surface: 'grass', activity: 'dry' }, p).minutesToTarget!,
+  );
+  assert.ok(sh < up / 2, `shoulders ${sh} vs upright ${up}`);
+});
+
+test('explainRate: factors multiply to the dose rate; presets are valid settings', () => {
+  const env: Environment = { uvi: 6, szaDeg: 30, cmf: 1 };
+  const film = newFilm({ spfLabel: 30, filter: 'photostable', mgPerCm2: 1, waterResistant: false, appliedAt: 0 });
+  const r = explainRate(env, PRESETS.picnic, film);
+  near(r.sedPerMinUnprotected, (0.025 * 6 * r.geometry * 60) / 100, 1e-12);
+  near(r.sedPerMin * r.spfEff, r.sedPerMinUnprotected, 1e-12);
+  near(r.sedPerMin * 10, advance(newSession(0, film), 600, env, PRESETS.picnic).doseSED, 0.01);
+  for (const pr of Object.values(PRESETS)) assert.ok(geometryFactor({ szaDeg: 30, ...pr }) > 0);
 });
 
 test('Sunscreen: SPF^a — 25% absorbance loss halves SPF 15', () => {
