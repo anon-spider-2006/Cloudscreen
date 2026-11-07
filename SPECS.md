@@ -228,7 +228,7 @@ If only clear-sky UV is available, the application may use a documented, calibra
 
 # 4. UV Dose Calculation Engine
 
-This is the central component of the application.
+This is the central component of the application. **For all modeling, refer to MODEL_SPEC.md before referencing the below section. Use this section to fill in gaps, not as a source of truth.**
 
 ## 4.1 Scientific Background
 
