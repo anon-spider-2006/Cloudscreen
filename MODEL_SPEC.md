@@ -232,19 +232,31 @@ Numbers below come from the generated reports: `model-fit/report.md` (Open-Meteo
 ### 15. Demo mode (src/demo/mackenzie.ts, src/app/demo.tsx)
 
 - **The persona:** a made-up person, Mackenzie McHale (a fan reference to HBO's The Newsroom; swap the name before any public release). Skin type II, with a hidden true MED of about 2.7 SED. She uses SPF 50, chemical, applied at 1 mg/cm², not water-resistant.
-- **Her history:**
-  - two weeks in Manhattan, with a rooftop-lunch burn on 2 Aug and better habits the week after;
-  - today, Sat 14 Aug 2027: a 30 min lunch under an umbrella on a Lake George dock, then an evening hike up Cascade Mountain (trailhead 640 m, summit 1,249 m; wooded lower trail, then open rock).
+- **Her history**, all in Italian time (CEST). While the demo runs, the app's time zone is set to Europe/Rome (`utils/time.ts`), so times read the same on any phone:
+  - **A week in Rome,** with a terrace-lunch burn on 2 Aug.
+  - **A week based in Cortina d'Ampezzo (1,224 m)** with better habits, including a swim at Lago di Braies.
+  - **Today, Sat 14 Aug 2027:** an early-start hike from Rifugio Auronzo (2,320 m) over Forcella Lavaredo (2,454 m) to Rifugio Locatelli (2,405 m), where she stays the night.
+    - The whole route is above the treeline, so there's no shade.
+    - She uses a water-resistant mineral sport sunscreen at 2 mg/cm², reapplied twice.
+    - The day ends on the terrace at sunset.
+- **New preset:** a Hike preset (upright, grass/soil, sweating) was added for this; it's useful outside the demo too.
 - **Built by the real engine:** buildDemo(moment) creates all of it. Each outing is judged against her calibration at the time, and each next-morning check-in is answered before the next outing. So every number on screen is the model's, and a test checks every check-in answer against her computed dose.
 - **Three moments:**
 
 | moment | UV | today so far | bare-skin time to burn |
 |---|---|---|---|
-| 12:30 on the dock (lunch running) | 7.7 | 16% | 54 min–1 h 55 min |
-| 5:15 pm at the trailhead (start) | 1.6 | 31% | possible after 1 h 20 min |
-| 7:00 pm on the summit (hike running) | 0.2 | 42% | not expected today |
+| 7:45 at Rifugio Auronzo, before the hike (start) | 0.5 | 0% | 1 h 25 min–2 h 5 min |
+| 10:30 at Forcella Lavaredo, mid-hike (SPF still about 11) | 4.4 | 34% | 12–29 min |
+| 6:15 pm on the Rifugio Locatelli terrace | 0.9 | 88% | could be now (most likely ~28 min) |
 
-- **The Trends story:** more time out this week than last (250 vs 230 min) but much less dose (6.1 vs 14.5 SED), and near-burn days down from 2 to 1. Sunscreen cut her dose by 81% when worn, against SPF 50 on the label. Her estimate settles at about 2.5 SED, below the type II average, with the range 42% narrower.
+- **What the day shows:**
+  - The hike gives 1.9 SED with sunscreen against 14.7 without it. Five hours above 2,300 m in August would have burned her badly.
+  - Sitting on the terrace afterwards brings the day close to her threshold.
+- **The Trends story** (at the start moment):
+  - more time out this week than last (260 vs 230 min), but much less dose (5.4 vs 13.9 SED);
+  - near-burn days down from 2 to 1;
+  - sunscreen cut her dose by 81% when worn, against SPF 50 on the label.
+- **Her estimate** settles at about 2.3–2.4 SED, below the type II average, with the range up to 42% narrower.
 - **Behaviour:**
   - Enter from Profile or "Just looking? Try the demo" in onboarding.
   - The real profile, place, forecast, satellite data, sessions, sunscreen log, check-ins and any active session are set aside in realSnapshot. That's persisted, so it survives the app closing mid-demo, and exit restores it exactly.

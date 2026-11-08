@@ -49,7 +49,8 @@ import {
   privacyCell,
   SAT_REFRESH_PAST_HOURS,
 } from '@/model';
-import { buildDemo, DEMO_MOMENTS, DEMO_NUDGE_AFTER_S, DEMO_NUDGES, DEMO_PROFILE, DEMO_START, type DemoMoment } from '@/demo/mackenzie';
+import { buildDemo, DEMO_MOMENTS, DEMO_NUDGE_AFTER_S, DEMO_NUDGES, DEMO_PROFILE, DEMO_START, DEMO_TIMEZONE, type DemoMoment } from '@/demo/mackenzie';
+import { setAppTimeZone } from '@/utils/time';
 import { accuracyKmOf, kmBetween, type Place } from '@/services/location';
 import * as notify from '@/services/notifications';
 
@@ -282,6 +283,7 @@ function withoutDemoLeftovers<T extends Pick<State, 'place' | 'forecast' | 'prof
 
 /** Mackenzie's state at a demo moment, built by the real engine. The demo clock starts at that moment and runs. */
 function demoSlices(moment: DemoMoment) {
+  setAppTimeZone(DEMO_TIMEZONE); // the persona lives in Italian time; set before building so day keys match
   const d = buildDemo(moment);
   const base: Profile = { ...DEFAULT_PROFILE, ...DEMO_PROFILE, demoClockOffsetMs: DEMO_MOMENTS[moment].t - Date.now() };
   return {
@@ -546,6 +548,7 @@ export const useStore = create<Store>()(
 
       exitDemo: () => {
         cancelDemoNudge();
+        setAppTimeZone(undefined); // back to the device's own zone
         const s = get();
         const real = s.realSnapshot;
         if (real) set({ ...withoutDemoLeftovers(real), demo: null, realSnapshot: null, banner: null, forecastError: null });
@@ -559,6 +562,7 @@ export const useStore = create<Store>()(
 
       deleteAll: () => {
         void notify.cancelBurnAlerts();
+        setAppTimeZone(undefined);
         set({ profile: DEFAULT_PROFILE, place: null, forecast: null, satellite: null, active: null, sessions: [], sunscreen: [], checkIns: [], custom: null, shade: 'none', demo: null, realSnapshot: null });
       },
     }),
@@ -574,6 +578,8 @@ export const useStore = create<Store>()(
       },
       // also on every load, in case real data picked one up some other way
       onRehydrateStorage: () => (s) => {
+        // reopened mid-demo: keep the demo's time zone
+        setAppTimeZone(s?.demo ? DEMO_TIMEZONE : undefined);
         if (s && !s.demo && s.place && s.profile) {
           const clean = withoutDemoLeftovers(s);
           if (clean !== s) useStore.setState({ place: clean.place, forecast: clean.forecast, profile: clean.profile });

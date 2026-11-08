@@ -10,11 +10,12 @@ import { DEMO_PERSONA } from '@/demo/mackenzie';
 import { useNow } from '@/hooks/use-app';
 import { useTheme } from '@/hooks/use-theme';
 import { useStore } from '@/state/store';
+import { fmtTime } from '@/utils/format';
 
 export function DemoStrip({ topInset }: { topInset: number }) {
   const c = useTheme();
   const now = useNow();
-  const time = new Date(now).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', timeZone: 'America/New_York' });
+  const time = fmtTime(now); // in the demo's time zone (Italy)
   return (
     <Pressable
       onPress={() => router.push('/demo')}

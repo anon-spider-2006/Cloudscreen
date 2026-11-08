@@ -2,6 +2,7 @@ import { useState, type ReactNode } from 'react';
 import { Modal, Pressable, ScrollView, View } from 'react-native';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
+import { appTimeZone, daysInMonth, fromWall, wall } from '@/utils/time';
 import { GlassSurface } from './glass';
 import { Button, Row } from './ui';
 
@@ -53,28 +54,31 @@ export function Select<T extends string | number>({ label, value, options, onCha
 
 export function DateSelect({ value, min, max, onChange }: { value: number; min: number; max: number; onChange: (value: number) => void }) {
   const [open, setOpen] = useState(false);
-  const [month, setMonth] = useState(() => new Date(value).getMonth());
-  const [year, setYear] = useState(() => new Date(value).getFullYear());
-  const first = new Date(year, month, 1);
-  const count = new Date(year, month + 1, 0).getDate();
-  const move = (delta: number) => { const d = new Date(year, month + delta, 1); setMonth(d.getMonth()); setYear(d.getFullYear()); };
+  // calendar maths in the app's time zone (the device's, or the demo's)
+  const [month, setMonth] = useState(() => wall(value).mo);
+  const [year, setYear] = useState(() => wall(value).y);
+  const first = fromWall(year, month, 1);
+  const firstWd = wall(first).wd;
+  const count = daysInMonth(year, month);
+  const tz = appTimeZone();
+  const move = (delta: number) => { const w = wall(fromWall(year, month + delta, 1)); setMonth(w.mo); setYear(w.y); };
   return <View style={{ gap: 8 }}>
     <ThemedText type="smallBold">Date</ThemedText>
-    <Button kind="secondary" title={new Date(value).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric' })} onPress={() => { setMonth(new Date(value).getMonth()); setYear(new Date(value).getFullYear()); setOpen(true); }} />
+    <Button kind="secondary" title={new Date(value).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric', year: 'numeric', timeZone: tz })} onPress={() => { setMonth(wall(value).mo); setYear(wall(value).y); setOpen(true); }} />
     <PickerSheet title="Choose a date" open={open} onClose={() => setOpen(false)}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Button title="‹" accessibilityHint="Previous month" kind="secondary" disabled={new Date(year, month, 1).getTime() <= new Date(new Date(min).getFullYear(), new Date(min).getMonth(), 1).getTime()} onPress={() => move(-1)} />
-        <ThemedText>{first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}</ThemedText>
-        <Button title="›" accessibilityHint="Next month" kind="secondary" disabled={new Date(year, month + 1, 1).getTime() > max} onPress={() => move(1)} />
+        <Button title="‹" accessibilityHint="Previous month" kind="secondary" disabled={first <= fromWall(wall(min).y, wall(min).mo, 1)} onPress={() => move(-1)} />
+        <ThemedText>{new Date(first).toLocaleDateString(undefined, { month: 'long', year: 'numeric', timeZone: tz })}</ThemedText>
+        <Button title="›" accessibilityHint="Next month" kind="secondary" disabled={fromWall(year, month + 1, 1) > max} onPress={() => move(1)} />
       </Row>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
         {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((d, i) => <View key={i} style={{ width: '14.2857%', alignItems: 'center', paddingVertical: 8 }}><ThemedText type="small">{d}</ThemedText></View>)}
-        {Array.from({ length: first.getDay() + count }, (_, i) => {
-          const day = i - first.getDay() + 1;
+        {Array.from({ length: firstWd + count }, (_, i) => {
+          const day = i - firstWd + 1;
           if (day < 1) return <View key={i} style={{ width: '14.2857%' }} />;
-          const t = new Date(year, month, day).getTime();
+          const t = fromWall(year, month, day);
           const disabled = t < min || t > max;
-          return <Pressable key={i} disabled={disabled} accessibilityRole="button" accessibilityLabel={new Date(t).toDateString()} accessibilityState={{ disabled, selected: t === value }} onPress={() => { onChange(t); setOpen(false); }} style={{ width: '14.2857%', minHeight: 44, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.25 : 1 }}>
+          return <Pressable key={i} disabled={disabled} accessibilityRole="button" accessibilityLabel={new Date(t).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric', timeZone: tz })} accessibilityState={{ disabled, selected: t === value }} onPress={() => { onChange(t); setOpen(false); }} style={{ width: '14.2857%', minHeight: 44, alignItems: 'center', justifyContent: 'center', opacity: disabled ? 0.25 : 1 }}>
             {t === value
               ? <GlassSurface tone="sky" radius={20} raised={false} style={{ width: 40, height: 40 }}><ThemedText type="smallBold" style={{ textAlign: 'center' }}>{day}</ThemedText></GlassSurface>
               : <ThemedText>{day}</ThemedText>}

@@ -10,6 +10,7 @@
  *  - calibration: next-morning check-in (§6.4)
  */
 import { getTimes } from 'suncalc';
+import { wall } from '../utils/time.ts';
 import {
   ALERT_THRESHOLDS,
   CMF_FIT_INFO,
@@ -562,11 +563,10 @@ export function overlaps(a: { startedAt: number; endedAt?: number }, start: numb
 
 // ---------------------------------------------------------------- days and calibration
 
+/** Calendar day of t in the app's time zone (the device's, or the demo's), as YYYY-MM-DD. */
 export function localDayKey(t: number): string {
-  const d = new Date(t);
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${m}-${day}`;
+  const w = wall(t);
+  return `${w.y}-${String(w.mo + 1).padStart(2, '0')}-${String(w.d).padStart(2, '0')}`;
 }
 
 export interface DaySummary {

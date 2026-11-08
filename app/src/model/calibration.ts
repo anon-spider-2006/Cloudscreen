@@ -13,6 +13,7 @@
  * where F = D / (MED_type · c) is the fraction we predicted. Updates are damped
  * in log space and clamped, so one odd day can't swing the model.
  */
+import { addDays, atHour } from '../utils/time.ts';
 import { MED_SED, type SkinType } from './dose.ts';
 
 export type Redness = 'none' | 'pink' | 'burned';
@@ -47,11 +48,10 @@ export function updateCUser(c: number, r: CalibrationReport): number {
 
 /** When to ask: 9:00 local the next day, and at least 12 h after the session ended. */
 export function calibrationPromptTime(sessionEnd: Date): Date {
-  const d = new Date(sessionEnd);
-  d.setDate(d.getDate() + 1);
-  d.setHours(9, 0, 0, 0);
+  // 9:00 the next day in the app's time zone (the device's, or the demo's)
+  const nineNextDay = atHour(addDays(sessionEnd.getTime(), 1), 9);
   const minT = sessionEnd.getTime() + 12 * 3_600_000;
-  return new Date(Math.max(d.getTime(), minT));
+  return new Date(Math.max(nineNextDay, minT));
 }
 
 // ---------------------------------------------------------------- Bayesian calibration

@@ -12,6 +12,7 @@ import { activityLabel, currentSPF, localDayKey, readAt, summarizeDays } from '@
 import { useNow } from '@/hooks/use-app';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
+import { appTimeZone, atHour } from '@/utils/time';
 import { pendingCheckIn, skinProfile, useStore } from '@/state/store';
 import { fmtBurnRange, fmtDay, fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
@@ -42,11 +43,10 @@ export default function Home() {
 
   const hourly = useMemo(() => {
     if (!cond) return [];
-    const d = new Date(cond.at);
-    d.setHours(6, 0, 0, 0);
+    const six = atHour(cond.at, 6);
     const pts = [];
     for (let h = 0; h < 15; h++) {
-      const t = d.getTime() + h * 3_600_000;
+      const t = six + h * 3_600_000;
       pts.push({ t, uvi: readAt(cond.ctx, t + 1_800_000).uvi });
     }
     return pts;
@@ -75,7 +75,7 @@ export default function Home() {
       <View style={{ gap: 12 }}>
         <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: c.border, paddingBottom: 16 }}>
           <Wordmark />
-          <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</ThemedText>
+          <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric', timeZone: appTimeZone() })}</ThemedText>
         </Row>
         <ThemedText type="title">Making your day a little brighter</ThemedText>
         <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityHint="Change your location in Profile" style={{ gap: 2 }}>

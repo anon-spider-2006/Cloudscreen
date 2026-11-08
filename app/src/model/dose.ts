@@ -90,6 +90,7 @@ export interface ExposureSettings {
 export const PRESETS = {
   walk: { label: 'Walk / errands', posture: 'upright', surface: 'pavement', activity: 'dry', shade: 'none' },
   run: { label: 'Run / cycle', posture: 'upright', surface: 'pavement', activity: 'sweating', shade: 'none' },
+  hike: { label: 'Hike', posture: 'upright', surface: 'grass', activity: 'sweating', shade: 'none' },
   picnic: { label: 'Park / picnic', posture: 'upright', surface: 'grass', activity: 'dry', shade: 'none' },
   beach: { label: 'Beach', posture: 'lying', surface: 'sand', activity: 'swimming', shade: 'none' },
   pool: { label: 'Pool / lake', posture: 'lying', surface: 'water', activity: 'swimming', shade: 'none' },

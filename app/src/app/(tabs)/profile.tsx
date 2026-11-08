@@ -168,7 +168,7 @@ export default function Profile() {
       <Card tone="sun">
         <Label>{s.demo ? 'You’re in the demo' : 'Try the demo'}</Label>
         <ThemedText type="smallBold">{DEMO_PERSONA.name}</ThemedText>
-        <ThemedText type="small">An evening in the Adirondacks</ThemedText>
+        <ThemedText type="small">A hike in the Dolomites</ThemedText>
         <Muted>
           {s.demo
             ? 'Everything on these screens is her made-up data. Your own data is set aside and comes back when you exit.'

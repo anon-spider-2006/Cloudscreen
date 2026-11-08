@@ -17,6 +17,7 @@ import { uvCategory } from "@/constants/theme";
 import { planDay, readAt } from "@/engine";
 import { useNow } from "@/hooks/use-app";
 import { useTheme } from "@/hooks/use-theme";
+import { addDays, atHour, startOfDay } from "@/utils/time";
 import type { ExposureSettings } from "@/model";
 import {
   defaultSunscreen,
@@ -65,9 +66,8 @@ export default function Forecast() {
 
   const days = useMemo(() => {
     const out = [];
-    const base = new Date(hourKey * 3_600_000);
-    base.setHours(12, 0, 0, 0);
-    for (let i = 0; i < 7; i++) out.push(base.getTime() + i * 86_400_000);
+    const noon = atHour(hourKey * 3_600_000, 12);
+    for (let i = 0; i < 7; i++) out.push(addDays(noon, i));
     return out;
   }, [hourKey]);
 
@@ -76,10 +76,9 @@ export default function Forecast() {
     return days.map((noon) => {
       let peak = 0;
       let above3 = 0;
-      const d0 = new Date(noon);
-      d0.setHours(0, 0, 0, 0);
+      const d0 = startOfDay(noon);
       for (let h = 5; h < 21; h++) {
-        const u = readAt(ctx, d0.getTime() + h * 3_600_000 + 1_800_000).uvi;
+        const u = readAt(ctx, d0 + h * 3_600_000 + 1_800_000).uvi;
         peak = Math.max(peak, u);
         if (u >= 3) above3 += 1;
       }
@@ -89,10 +88,9 @@ export default function Forecast() {
 
   const hourly = useMemo(() => {
     if (!ctx) return [];
-    const d = new Date(days[Math.min(dayIdx, 1)]);
-    d.setHours(6, 0, 0, 0);
+    const six = atHour(days[Math.min(dayIdx, 1)], 6);
     return Array.from({ length: 15 }, (_, h) => {
-      const t = d.getTime() + h * 3_600_000;
+      const t = six + h * 3_600_000;
       return { t, uvi: readAt(ctx, t + 1_800_000).uvi };
     });
   }, [ctx, days, dayIdx]);

@@ -5,7 +5,8 @@ import { test } from 'node:test';
 
 import { fmtBurnRange } from '../utils/format.ts';
 import { sunColorFor } from '../utils/sun-color.ts';
-import { buildDemo, DEMO_MOMENTS, DEMO_NUDGES, DEMO_PROFILE } from '../demo/mackenzie.ts';
+import { buildDemo, DEMO_MOMENTS, DEMO_NUDGES, DEMO_PROFILE, DEMO_TIMEZONE, type DemoMoment } from '../demo/mackenzie.ts';
+import { setAppTimeZone } from '../utils/time.ts';
 import { cUserOf, project, solarPhase } from '../model/index.ts';
 import {
   answerCheckIn,
@@ -16,6 +17,7 @@ import {
   describeSettings,
   presetMatching,
   sitesFor,
+  currentSPF,
   rangeNarrowing,
   readAt,
   skinDose,
@@ -223,6 +225,7 @@ test('cautious alerts: projecting to th / k from the central dose does not slide
 
 test('fmtBurnRange: ranges, open ends, nothing', () => {
   assert.equal(fmtBurnRange({ minutes: 42, soonest: 35, latest: 50 }), '35–50 min');
+  assert.equal(fmtBurnRange({ minutes: 28, soonest: 0, latest: null }), 'Could be now'); // cautious end already reached
   assert.equal(fmtBurnRange({ minutes: 100, soonest: 70, latest: 130 }), '1 h 10 min–2 h 10 min');
   assert.equal(fmtBurnRange({ minutes: 300, soonest: 240, latest: null }), '4 h or later');
   assert.equal(fmtBurnRange({ minutes: null, soonest: 400, latest: null }), 'Possible after 6 h 40 min');
@@ -318,76 +321,16 @@ test('trends: skin learning starts at the prior and the range narrows with check
 // ---------------------------------------------------------------- demo persona (Mackenzie)
 
 
-test('demo: Mackenzie at each moment — history, today, and an active session where one is running', () => {
-  const t = buildDemo('trailhead');
-  assert.equal(t.active, null);
-  assert.equal(t.sessions.length, 9); // 8 in Manhattan + today's lunch
-  assert.equal(t.checkIns.length, 6);
-  assert.ok(t.sessions.every((s) => s.status === 'completed' && !s.demo), 'her sessions count in her trends and calibration');
-  assert.equal(t.now, DEMO_MOMENTS.trailhead.t);
-  const dock = buildDemo('dock');
-  assert.equal(dock.active?.preset, 'picnic');
-  assert.equal(dock.sessions.length, 8);
-  const summit = buildDemo('summit');
-  assert.equal(summit.active?.preset, 'walk');
-  assert.equal(summit.active?.settings.shade, 'none'); // out of the trees near the top
-  assert.equal(summit.place.elevationM, 1249);
-  assert.equal(DEMO_PROFILE.notifications, false);
-});
 
-test('demo: every check-in answer is consistent with the dose the model gives her (true MED ≈ 2.7 SED)', () => {
-  const { sessions, checkIns } = buildDemo('trailhead');
-  for (const c of checkIns) {
-    const dose = c.doseSED! / 2.7;
-    if (c.redness === 'burned') assert.ok(dose > 2, `${c.day} burned at ${dose.toFixed(2)} MED`);
-    if (c.redness === 'pink') assert.ok(dose > 0.9 && dose < 2, `${c.day} pink at ${dose.toFixed(2)} MED`);
-    if (c.redness === 'none') assert.ok(dose < 0.6, `${c.day} none at ${dose.toFixed(2)} MED`);
-  }
-  // the app learns she burns sooner than the type-II average, and her truth is inside the range
-  const post = calibrate(2, checkIns);
-  assert.ok(post.median < 3 && post.q10 < 2.7 && 2.7 < post.q90, `${post.q10}–${post.median}–${post.q90}`);
-  assert.ok(sessions.length > 0);
-});
 
-test('demo: the trends tell the story — more time out this week, much less dose, fewer near-burn days', () => {
-  const d = buildDemo('trailhead');
-  const post = calibrate(2, d.checkIns);
-  const w = weekCompare(d.sessions, { skinType: 2, cUser: cUserOf(2, post) }, d.now);
-  assert.ok(w.thisWeek.outdoorSeconds > w.lastWeek.outdoorSeconds);
-  assert.ok(w.thisWeek.protectedSED < 0.6 * w.lastWeek.protectedSED);
-  assert.ok(w.thisWeek.nearBurnDays < w.lastWeek.nearBurnDays);
-  const h = sunscreenHabit(d.sessions, d.now);
-  assert.ok(h.doseCut! > 0.5 && h.labelSpf === 50);
-  assert.ok(rangeNarrowing(skinLearning(2, d.checkIns)) > 0.25);
-});
 
-test('demo: the scripted sunscreen nudges say what the model shows at that moment', () => {
-  const post = calibrate(2, buildDemo('trailhead').checkIns);
-  const prof = { skinType: 2 as const, cUser: cUserOf(2, post), medLogSpread: post.logSpread };
-  const at = (m: 'dock' | 'trailhead' | 'summit') => {
-    const d = buildDemo(m);
-    const ctx: UVContext = { lat: d.place.lat, lon: d.place.lon, altitudeKm: d.place.elevationM / 1000, mode: 'demo', demoClouds: DEMO_PROFILE.demoClouds };
-    const today = [...d.sessions, ...(d.active ? [d.active] : [])].filter((s) => localDayKey(s.startedAt) === localDayKey(d.now)).reduce((a, s) => a + skinDose(s).protectedSED, 0);
-    return { reading: readAt(ctx, d.now), ttb: timeToBurnNow({ now: d.now, ctx, profile: prof, settings: settingsForPreset('walk'), priorDoseSED: today }) };
-  };
-  // dock: "UV is high"
-  assert.ok(at('dock').reading.uvi >= 6, 'UV high on the dock');
-  // trailhead: "over a 2½-hour hike you could reach your burn threshold" — cautious time within 150 min, central not
-  const t = at('trailhead');
-  assert.ok(t.reading.uvi < 3, 'UV low at the trailhead');
-  assert.ok(t.ttb.bareWorst.soonest !== null && t.ttb.bareWorst.soonest <= 150, `soonest ${t.ttb.bareWorst.soonest}`);
-  // summit: no nudge, because there's nothing to warn about
-  assert.equal(DEMO_NUDGES.summit, null);
-  assert.equal(at('summit').ttb.bareWorst.soonest, null);
-  assert.ok(DEMO_NUDGES.dock && DEMO_NUDGES.trailhead);
-});
 
 // ---------------------------------------------------------------- activity vocabulary (every screen)
 
-const PRESETS_LABEL = { walk: 'Walk / errands', run: 'Run / cycle', picnic: 'Park / picnic', beach: 'Beach', pool: 'Pool / lake', ski: 'Ski / snow' } as const;
+const PRESETS_LABEL = { walk: 'Walk / errands', run: 'Run / cycle', hike: 'Hike', picnic: 'Park / picnic', beach: 'Beach', pool: 'Pool / lake', ski: 'Ski / snow' } as const;
 
 test('activity: each preset matches itself; any changed detail is Custom; labels are words', () => {
-  for (const k of ['walk', 'run', 'picnic', 'beach', 'pool', 'ski'] as const) {
+  for (const k of ['walk', 'run', 'hike', 'picnic', 'beach', 'pool', 'ski'] as const) {
     const x = settingsForPreset(k, 'umbrella');
     assert.equal(presetMatching(x), k, k); // shade doesn't change which activity it is
     assert.equal(activityLabel(k, x), PRESETS_LABEL[k]);
@@ -414,26 +357,117 @@ test('activity: "shoulders" is not a separate model choice — it tracks the sam
 
 // ---------------------------------------------------------------- sun icon colour
 
+
+// ---------------------------------------------------------------- demo persona (Mackenzie in Italy)
+
+/** The demo lives in Italian time; build it the way the store does. */
+function inDemoZone<T>(fn: () => T): T {
+  setAppTimeZone(DEMO_TIMEZONE);
+  try {
+    return fn();
+  } finally {
+    setAppTimeZone(undefined);
+  }
+}
+
+test('demo: Mackenzie at each moment — history, today, and an active session where one is running', () =>
+  inDemoZone(() => {
+    const start = buildDemo('trailhead');
+    assert.equal(start.active, null);
+    assert.equal(start.sessions.length, 8); // a week in Rome, a week in the Dolomites
+    assert.ok(start.sessions.every((s) => s.status === 'completed' && !s.demo), 'her sessions count in her trends and calibration');
+    assert.equal(start.now, DEMO_MOMENTS.trailhead.t);
+    assert.equal(start.place.elevationM, 2320);
+    const pass = buildDemo('pass');
+    assert.equal(pass.active?.preset, 'hike');
+    assert.equal(pass.active?.lastSpf, 50);
+    const rifugio = buildDemo('rifugio');
+    assert.equal(rifugio.active?.preset, 'picnic');
+    assert.equal(rifugio.sessions.length, 9); // + the hike
+    assert.equal(rifugio.checkIns.filter((c) => c.answeredAt).length, 6);
+    assert.equal(DEMO_PROFILE.notifications, false);
+    // times read as Italian local time on any phone
+    assert.equal(localDayKey(DEMO_MOMENTS.rifugio.t), '2027-08-14');
+  }));
+
+test('demo: every check-in answer is consistent with the dose the model gives her (true MED ≈ 2.7 SED)', () =>
+  inDemoZone(() => {
+    const { checkIns } = buildDemo('rifugio');
+    for (const c of checkIns) {
+      const dose = c.doseSED! / 2.7;
+      if (c.redness === 'burned') assert.ok(dose > 2, `${c.day} burned at ${dose.toFixed(2)} MED`);
+      if (c.redness === 'pink') assert.ok(dose > 0.9 && dose < 2, `${c.day} pink at ${dose.toFixed(2)} MED`);
+      if (c.redness === 'none') assert.ok(dose < 0.6, `${c.day} none at ${dose.toFixed(2)} MED`);
+    }
+    // the app learns she burns sooner than the type-II average, and her truth is inside the range
+    const post = calibrate(2, checkIns);
+    assert.ok(post.median < 3 && post.q10 < 2.7 && 2.7 < post.q90, `${post.q10}–${post.median}–${post.q90}`);
+  }));
+
+test('demo: the day tells the story — the hike stays under her threshold, the evening gets close', () =>
+  inDemoZone(() => {
+    const d = buildDemo('rifugio');
+    const post = calibrate(2, d.checkIns);
+    const hike = d.sessions.find((s) => s.preset === 'hike')!;
+    assert.ok(skinDose(hike).protectedSED < post.median, 'sport sunscreen, reapplied, keeps the hike under her threshold');
+    assert.ok(skinDose(hike).unprotectedSED > 3 * post.median, 'without it she would have burned badly');
+    const today = [...d.sessions, d.active!].filter((s) => localDayKey(s.startedAt) === '2027-08-14').reduce((a, s) => a + skinDose(s).protectedSED, 0);
+    assert.ok(today > 0.7 * post.median && today < post.median, `day total ${today} vs ${post.median}`);
+  }));
+
+test('demo: the trends tell the story — more time out this week, much less dose, fewer near-burn days', () =>
+  inDemoZone(() => {
+    const d = buildDemo('trailhead');
+    const post = calibrate(2, d.checkIns);
+    const w = weekCompare(d.sessions, { skinType: 2, cUser: cUserOf(2, post) }, d.now);
+    assert.ok(w.thisWeek.outdoorSeconds > w.lastWeek.outdoorSeconds);
+    assert.ok(w.thisWeek.protectedSED < 0.6 * w.lastWeek.protectedSED);
+    assert.ok(w.thisWeek.nearBurnDays < w.lastWeek.nearBurnDays);
+    const h = sunscreenHabit(d.sessions, d.now);
+    assert.ok(h.doseCut! > 0.5 && h.labelSpf === 50);
+    assert.ok(rangeNarrowing(skinLearning(2, d.checkIns)) > 0.2);
+  }));
+
+test('demo: the scripted sunscreen nudges say what the model shows at that moment', () =>
+  inDemoZone(() => {
+    const at = (m: DemoMoment) => {
+      const d = buildDemo(m);
+      const ctx: UVContext = { lat: d.place.lat, lon: d.place.lon, altitudeKm: d.place.elevationM / 1000, mode: 'demo', demoClouds: DEMO_PROFILE.demoClouds };
+      return { d, reading: readAt(ctx, d.now), phase: solarPhase(new Date(d.now), d.place.lat, d.place.lon) };
+    };
+    // start: "at 2,300 m UV is about 12% stronger than at sea level"
+    const start = at('trailhead');
+    assert.ok(Math.abs(start.d.place.elevationM - 2300) < 100);
+    near(0.05 * (start.d.place.elevationM / 1000), 0.12, 0.01);
+    // pass: "UV is climbing fast… your sunscreen is still working"
+    const pass = at('pass');
+    assert.ok(pass.phase.rising && pass.reading.uvi >= 3, `UV ${pass.reading.uvi}`);
+    assert.ok(currentSPF(pass.d.active!) > 3, 'sunscreen still working');
+    // rifugio: no nudge (the sun is low)
+    assert.equal(DEMO_NUDGES.rifugio, null);
+    assert.ok(at('rifugio').reading.uvi < 2);
+    assert.ok(DEMO_NUDGES.trailhead && DEMO_NUDGES.pass);
+  }));
+
+// ---------------------------------------------------------------- sun icon colour
+
 test('sun icon colour: yellow in the morning, warming as the evening sun sinks, dusk below the horizon', () => {
   const SUN = '#FFDF38';
   const CORAL = '#FF8669';
-  // morning stays yellow even when low
-  assert.equal(sunColorFor(5, true, SUN, CORAL), SUN);
+  assert.equal(sunColorFor(5, true, SUN, CORAL), SUN); // morning stays yellow even when low
   assert.equal(sunColorFor(45, false, SUN, CORAL), SUN);
-  // evening: warmer (less green, which is what separates yellow from red) the lower it gets
-  const g = (h: string) => parseInt(h.slice(3, 5), 16);
+  const g = (h: string) => parseInt(h.slice(3, 5), 16); // green separates yellow from red
   const ev = [30, 20, 12, 6, 2, 0].map((e) => sunColorFor(e, false, SUN, CORAL));
   for (let i = 1; i < ev.length; i++) assert.ok(g(ev[i]) <= g(ev[i - 1]), `${ev[i - 1]} → ${ev[i]}`);
   assert.equal(sunColorFor(4, false, SUN, CORAL), CORAL);
   assert.equal(sunColorFor(-5, true, SUN, CORAL), sunColorFor(-5, false, SUN, CORAL)); // night is night either way
-  // the demo's three moments tell the evening story
-  const at = (m: 'dock' | 'trailhead' | 'summit') => {
-    const d = buildDemo(m);
-    const p = solarPhase(new Date(d.now), d.place.lat, d.place.lon);
-    return { ...p, color: sunColorFor(p.elevationDeg, p.rising, SUN, CORAL) };
+  // the demo day: yellow at the start and the pass, warmer on the terrace at sunset
+  const color = (m: DemoMoment) => {
+    const { t, place } = DEMO_MOMENTS[m];
+    const p = solarPhase(new Date(t), place.lat, place.lon);
+    return sunColorFor(p.elevationDeg, p.rising, SUN, CORAL);
   };
-  assert.equal(at('dock').rising, true);
-  assert.equal(at('dock').color, SUN);
-  assert.equal(at('trailhead').rising, false);
-  assert.ok(g(at('summit').color) < g(at('trailhead').color), 'summit sun is warmer than the trailhead sun');
+  assert.equal(color('trailhead'), SUN);
+  assert.equal(color('pass'), SUN);
+  assert.ok(g(color('rifugio')) < g(SUN), 'evening sun is warmer');
 });

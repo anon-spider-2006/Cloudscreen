@@ -8,12 +8,12 @@ import { Select, DateSelect } from '@/components/cs/select';
 import { Button, Card, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { presetMatching } from '@/engine';
+import { localDayKey, presetMatching } from '@/engine';
+import { addDays, atHour, startOfDay } from '@/utils/time';
 import type { ExposureSettings } from '@/model';
 import { nowFor, settingsFor, useStore } from '@/state/store';
 import { fmtTime } from '@/utils/format';
 
-const midnight = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
 export default function AddSession() {
   const c = useTheme();
@@ -21,8 +21,8 @@ export default function AddSession() {
   const profile = useStore((s) => s.profile);
   const add = useStore((s) => s.addPastSession);
   const now = nowFor(profile);
-  const today = midnight(now);
-  const yesterdayDate = new Date(today); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const today = startOfDay(now);
+  const yesterday = addDays(today, -1);
   const [date, setDate] = useState(today);
   const [startMinute, setStartMinute] = useState<number | null>(null);
   const [hours, setHours] = useState(1);
@@ -34,13 +34,11 @@ export default function AddSession() {
   const [sunscreen, setSunscreen] = useState<'none' | 'start'>('none');
   const [error, setError] = useState<string | null>(null);
   const duration = hours * 60 + minutes;
-  const startDate = new Date(date);
-  if (startMinute !== null) startDate.setHours(Math.floor(startMinute / 60), startMinute % 60, 0, 0);
-  const start = startMinute === null ? null : startDate.getTime();
+  const start = startMinute === null ? null : atHour(date, Math.floor(startMinute / 60), startMinute % 60);
   const end = start === null ? null : start + duration * 60_000;
   const starts = Array.from({ length: 96 }, (_, i) => {
-    const d = new Date(date); d.setHours(Math.floor(i / 4), (i % 4) * 15, 0, 0);
-    return { value: i * 15, label: fmtTime(d.getTime()), time: d.getTime() };
+    const time = atHour(date, Math.floor(i / 4), (i % 4) * 15);
+    return { value: i * 15, label: fmtTime(time), time };
   }).filter((o) => o.time < now);
   const validation = duration === 0 ? 'Choose a duration greater than zero.' : start !== null && end !== null && end > now ? 'This session ends in the future. Choose an earlier start or a shorter duration.' : null;
 
@@ -54,7 +52,7 @@ export default function AddSession() {
       </Svg>
     </Row>
     <Card>
-      <DateSelect value={date} min={yesterdayDate.getTime()} max={today} onChange={(v) => { setDate(v); setStartMinute(null); setError(null); }} />
+      <DateSelect value={date} min={yesterday} max={today} onChange={(v) => { setDate(v); setStartMinute(null); setError(null); }} />
       <Select label="Started at" value={startMinute} options={starts} onChange={setStartMinute} />
       <Muted>Start times are in 15-minute steps, in your device’s local time.</Muted>
       <Label>For how long?</Label>
@@ -64,7 +62,7 @@ export default function AddSession() {
       </Row>
       {start !== null && end !== null ? (
         <Muted>
-          {new Date(start).toDateString() === new Date(end).toDateString()
+          {localDayKey(start) === localDayKey(end)
             ? `${fmtTime(start)} to ${fmtTime(end)}`
             : `${fmtTime(start)} to ${fmtTime(end)} the next day`}
         </Muted>

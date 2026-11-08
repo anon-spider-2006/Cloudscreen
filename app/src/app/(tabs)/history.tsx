@@ -10,6 +10,7 @@ import { fractionColor } from '@/constants/theme';
 import { activityLabel, localDayKey, skinDose, summarizeDays } from '@/engine';
 import { useNow } from '@/hooks/use-app';
 import { useTheme } from '@/hooks/use-theme';
+import { addDays, atHour, wall } from '@/utils/time';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtDay, fmtPct, fmtSED, fmtShortDuration, fmtTime } from '@/utils/format';
 
@@ -23,10 +24,9 @@ export default function History() {
 
   const last14 = useMemo(() => {
     const out: { key: string; sed: number; frac: number; t: number }[] = [];
-    const today = new Date(hour * 3_600_000);
-    today.setHours(12, 0, 0, 0);
+    const today = atHour(hour * 3_600_000, 12);
     for (let i = 13; i >= 0; i--) {
-      const t = today.getTime() - i * 86_400_000;
+      const t = addDays(today, -i);
       const key = localDayKey(t);
       const d = days.find((x) => x.day === key);
       out.push({ key, sed: d?.unprotectedSED ?? 0, frac: d?.peakFraction ?? 0, t });
@@ -50,7 +50,7 @@ export default function History() {
           {last14.map((d, i) =>
             i % 3 === 1 ? (
               <SvgText key={`l${d.key}`} x={4 + i * 22.5} y={104} fontSize={10} fill={c.textSecondary}>
-                {new Date(d.t).getDate()}
+                {wall(d.t).d}
               </SvgText>
             ) : null,
           )}

@@ -547,6 +547,7 @@ Top to bottom:
 |---|---|---|---|
 | Walk / errands (default) | upright | pavement | dry |
 | Run / cycle | upright | pavement | sweating |
+| Hike | upright | grass / soil | sweating |
 | Park / picnic | upright | grass | dry |
 | Beach | lying | sand | swimming |
 | Pool / lake | lying | water | swimming |
@@ -644,21 +645,26 @@ The values above are illustrative; the screen shows live ones. Each row notes wh
 A complete, made-up person, so every screen has something to show, fully offline:
 
 - **The persona:**
-  - Mackenzie McHale, an executive producer in Manhattan. This is a fan reference to HBO's *The Newsroom*; swap the name before any public release.
-  - Skin type II with a hidden true MED of about 2.7 SED. SPF 50, chemical, applied at 1 mg/cm², not water-resistant.
-- **Her history:**
-  - two weeks in Manhattan: a rooftop-lunch burn, then better habits;
-  - Saturday 14 August 2027: a 30-minute lunch under an umbrella on a Lake George dock, then an evening hike up Cascade Mountain (trailhead 640 m, summit 1,249 m).
+  - Mackenzie McHale, an executive producer from Manhattan, on her first real trip after the election cycle. This is a fan reference to HBO's *The Newsroom*; swap the name before any public release.
+  - Skin type II with a hidden true MED of about 2.7 SED. Her everyday sunscreen is SPF 50, chemical, at 1 mg/cm², not water-resistant. For the hike she uses a water-resistant mineral sport sunscreen, put on properly.
+- **Her history,** all in Italian time:
+  - a week in Rome (a terrace-lunch burn);
+  - a week based in Cortina d'Ampezzo in the Dolomites (better habits, a swim at Lago di Braies);
+  - Saturday 14 August 2027: an early hike round the Tre Cime di Lavaredo, from Rifugio Auronzo (2,320 m) over Forcella Lavaredo (2,454 m) to Rifugio Locatelli (2,405 m), where she stays the night; the evening on the terrace at sunset.
+- **Time zone:** while the demo runs, the app's time zone is Europe/Rome (`utils/time.ts`), so "9:00", "today" and the morning check-in mean Italian time on any phone. Your own zone comes back on exit.
 - **Built by the real engine.** Each check-in answer is tested against the dose the model gives her.
 - **Entering:** Profile ("Try the demo"), or "Just looking? Try the demo" in onboarding. An intro sheet explains who she is and that your data is set aside.
 - **While it's running:**
-  - a coral strip on every screen ("Demo: Mackenzie, 17:15 · Controls ›");
-  - the controls: jump to 12:30 on the dock, 5:15 at the trailhead or 7:00 on the summit, set the sky (low, mid and high cloud), restart, or exit;
+  - a coral strip on every screen ("Demo: Mackenzie, 7:45 · Controls ›");
+  - the controls: jump to 7:45 before the hike, 10:30 at the pass, or 6:15 pm on the rifugio terrace; set the sky (low, mid and high cloud); restart; or exit;
   - the clock runs from the chosen moment.
 - **Your data is safe:**
   - your real data is saved aside, including while the app is closed, and restored exactly on exit;
   - the demo never fetches anything or uses your location;
-  - its only notification is one scripted sunscreen nudge, 30 s after entering or jumping (an in-app banner without permission). There is none on the summit, where the UV is too low.
+  - its only notification is one scripted nudge, 30 s after entering or jumping (an in-app banner without permission):
+    - at the start, "Sunscreen before you set off?" (UV is about 12% stronger at 2,300 m);
+    - at the pass, "UV is climbing fast up here";
+    - none at sunset, when the UV is low.
 - **Leftover cleanup:** if real data ever holds a demo place or demo mode (the pre-persona demo left "Miami, FL (demo)"), it's cleared on load.
 
 ---
@@ -672,7 +678,7 @@ A complete, made-up person, so every screen has something to show, fully offline
 | Burn progress 50% / 80% / 100% | The **cautious** dose (central × the band's high end for the session's outdoor time) crosses the threshold. Scheduled ahead by projecting to threshold ÷ factor, so the alert time never slides later. Wording: "You may be at…" | Built |
 | Reapply reminder | `reminderMin` after the last sunscreen during a session | Built |
 | Morning check-in | 9:00 the next day, at least 12 h after the session; one per day | Built |
-| Demo sunscreen nudge | 30 s after entering the demo or jumping to the dock or trailhead | Built |
+| Demo sunscreen nudge | 30 s after entering the demo or jumping to the start or the pass | Built |
 | High UV, long session, planned-outing forecast, data unavailable | — | Not built |
 
 ## 8.2 Notification Requirements
@@ -1236,7 +1242,7 @@ The MVP is complete when:
 7. Plan tomorrow with the lowest-UV windows.
 8. See your trends in History.
 
-For presenting: **"Just looking? Try the demo"** shows Mackenzie's evening in the Adirondacks, fully offline. Use Controls to jump between the dock, the trailhead and the summit.
+For presenting: **"Just looking? Try the demo"** shows Mackenzie's hike in the Dolomites, fully offline. Use Controls to jump between the start, the pass and the rifugio at sunset.
 
 ---
 

@@ -43,16 +43,16 @@ export default function Demo() {
           <ThemedText type="small">{DEMO_PERSONA.role}</ThemedText>
           <ThemedText type="small">Skin type II, wears SPF 50</ThemedText>
           <ThemedText type="small">
-            {start.place.name.replace(' (demo)', '')}, Saturday 14 August 2027 at 5:15 pm
+            {start.place.name.replace(' (demo)', '')}, Dolomites, Saturday 14 August 2027 at 7:45 am (Italian time)
           </ThemedText>
           <Muted>{DEMO_PERSONA.blurb}</Muted>
         </Card>
         <Card>
           <Label>Try</Label>
-          <Muted>• Forecast: why the evening is the low-UV window</Muted>
-          <Muted>• Track: start the hike, then switch from trees to the open summit</Muted>
-          <Muted>• History: two weeks of trends, and how the app learned her skin</Muted>
-          <Muted>• Tap the coral strip at the top any time to jump to 12:30 on the dock</Muted>
+          <Muted>• Home: at 2,300 m the UV climbs fast; see how long bare skin would last</Muted>
+          <Muted>• Track: start the hike, then jump to the pass to see her sunscreen at work</Muted>
+          <Muted>• History: a week in Rome, a week in the Dolomites, and how the app learned her skin</Muted>
+          <Muted>• Tap the coral strip at the top any time to jump to the pass or the rifugio at sunset</Muted>
         </Card>
         <Muted>A made-up person and history, computed by the real model, fully offline. Your own data is set aside, untouched, and comes back when you exit.</Muted>
         <Row style={{ gap: 12 }}>
