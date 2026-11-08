@@ -12,7 +12,7 @@ export function SunMark({ size = 116 }: { size?: number }) {
           x2={60 + Math.cos(angle) * 53} y2={60 + Math.sin(angle) * 53} stroke={c.text} strokeWidth={1.5} />;
       })}
       <Circle cx={60} cy={60} r={32} fill={c.sun} />
-      <Path d="M 28 60 A 32 32 0 0 0 92 60" fill="#BD6951" />
+      <Path d="M 28 60 A 32 32 0 0 0 92 60" fill={c.coral} />
       <Line x1={14} y1={60} x2={106} y2={60} stroke={c.text} strokeWidth={1.5} />
     </Svg>
   );

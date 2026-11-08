@@ -34,8 +34,8 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   const hydrated = useHydrated();
   const [fontsLoaded, fontError] = useFonts({
-    GildaDisplay: require('../../assets/fonts/GildaDisplay-Regular.ttf'),
-    Karla: require('../../assets/fonts/Karla.ttf'),
+    BricolageGrotesque: require('../../assets/fonts/BricolageGrotesque.ttf'),
+    DMSans: require('../../assets/fonts/DMSans.ttf'),
   });
 
   useEffect(() => {

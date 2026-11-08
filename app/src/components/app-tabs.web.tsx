@@ -84,7 +84,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     borderRadius: 0,
     borderTopWidth: 2,
-    borderTopColor: '#869FB2',
+    borderTopColor: '#97D7EF',
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
@@ -93,8 +93,9 @@ const styles = StyleSheet.create({
   },
   brandText: {
     marginRight: 6,
-    fontFamily: Fonts.serif,
+    fontFamily: Fonts.display,
     fontSize: 24,
+    fontWeight: 800,
   },
   pressed: {
     opacity: 0.7,
