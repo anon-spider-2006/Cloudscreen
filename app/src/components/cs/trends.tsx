@@ -32,8 +32,12 @@ function StatRow({ label, value, note }: { label: string; value: string; note: s
   return (
     <View style={{ gap: 2 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <ThemedText type="small">{label}</ThemedText>
-        <ThemedText type="smallBold">{value}</ThemedText>
+        <ThemedText type="small" style={{ flexShrink: 1 }}>
+          {label}
+        </ThemedText>
+        <ThemedText type="smallBold" style={{ flexShrink: 0 }}>
+          {value}
+        </ThemedText>
       </Row>
       <Muted>{note}</Muted>
     </View>
@@ -135,12 +139,9 @@ export function TrendsCard() {
         <Muted>No outings in the last {habit.days} days.</Muted>
       ) : (
         <>
-          <Row style={{ justifyContent: 'space-between' }}>
-            <ThemedText type="small">On for {Math.round(covered * 100)}% of your time outside</ThemedText>
-            <Muted>
-              {habit.sessionsWithSunscreen} of {habit.sessions} outings
-            </Muted>
-          </Row>
+          <ThemedText type="small">
+            On for {Math.round(covered * 100)}% of your time outside ({habit.sessionsWithSunscreen} of {habit.sessions} outings)
+          </ThemedText>
           <Bar fraction={covered} color={c.tint} />
           {habit.doseCut === null ? (
             <Muted>No sunscreen logged on these outings.</Muted>

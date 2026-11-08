@@ -30,10 +30,10 @@ export function DemoStrip({ topInset }: { topInset: number }) {
         alignItems: 'center',
         opacity: pressed ? 0.85 : 1,
       })}>
-      <ThemedText type="smallBold" style={{ color: '#2A1000', letterSpacing: 1 }}>
-        DEMO · {DEMO_PERSONA.name} · {time}
+      <ThemedText type="smallBold" numberOfLines={1} style={{ color: '#2A1000', letterSpacing: 1, flexShrink: 1, marginRight: 8 }}>
+        DEMO · {DEMO_PERSONA.name.split(' ')[0]} · {time}
       </ThemedText>
-      <ThemedText type="smallBold" style={{ color: '#2A1000' }}>
+      <ThemedText type="smallBold" style={{ color: '#2A1000', flexShrink: 0 }}>
         Controls ›
       </ThemedText>
     </Pressable>

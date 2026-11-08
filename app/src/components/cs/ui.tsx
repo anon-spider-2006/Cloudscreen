@@ -26,9 +26,14 @@ export function Screen({ children, tabbed = true }: { children: ReactNode; tabbe
         alignItems: demo ? 'stretch' : 'center',
       }}>
       {demo ? <DemoStrip topInset={topInset} /> : null}
-      <View style={demo ? { alignItems: 'center', paddingHorizontal: Spacing.four, paddingTop: Spacing.four } : undefined}>
+      {demo ? (
+        // full-width wrapper so the column's width: '100%' resolves against the screen, not its content
+        <View style={{ width: '100%', alignItems: 'center', paddingHorizontal: Spacing.four, paddingTop: Spacing.four }}>
+          <View style={styles.column}>{children}</View>
+        </View>
+      ) : (
         <View style={styles.column}>{children}</View>
-      </View>
+      )}
     </ScrollView>
   );
 }
