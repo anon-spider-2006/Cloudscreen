@@ -1,0 +1,10 @@
+export const calls: string[] = [];
+export const initNotifications = () => { calls.push('init'); };
+export const ensurePermission = async () => false;
+export const canNotify = async () => false;
+export const cancel = async (id: string) => { calls.push(`cancel:${id}`); };
+export const cancelBurnAlerts = async () => { calls.push('cancelBurnAlerts'); };
+export const scheduleBurnAlerts = async () => { calls.push('scheduleBurnAlerts'); };
+export const scheduleSunscreenReminder = async () => { calls.push('scheduleSunscreenReminder'); };
+export const scheduleCheckIn = async () => { calls.push('scheduleCheckIn'); };
+export const scheduleDemoNudge = async () => { calls.push('scheduleDemoNudge'); };
