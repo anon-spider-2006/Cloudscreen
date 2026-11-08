@@ -34,6 +34,7 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "@types/react": "~19.3.0",
     "eslint": "^9.0.0",
     "eslint-config-expo": "~58.0.4",
@@ -46,7 +47,13 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test:model": "node --no-warnings --test src/model/*.test.ts src/engine/*.test.ts"
+    "test:model": "node --no-warnings --test src/model/*.test.ts src/engine/*.test.ts",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "node --no-warnings --import ./tests/support/register.mjs --test src/model/*.test.ts tests/unit/*.test.ts",
+    "test:integration": "node --no-warnings --import ./tests/support/register.mjs --test src/engine/*.test.ts tests/integration/*.test.ts",
+    "test:e2e": "playwright test",
+    "test:all": "npm test && npm run test:e2e",
+    "typecheck": "tsc --noEmit"
   },
   "private": true
 }

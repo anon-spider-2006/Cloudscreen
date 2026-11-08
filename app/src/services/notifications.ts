@@ -7,11 +7,18 @@ import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 const supported = Platform.OS !== 'web';
-let initialized = false;
+const CHANNEL = 'default';
+/** Resolves once setup is done (on Android: the channel exists). */
+let ready: Promise<void> | null = null;
 
-export function initNotifications() {
-  if (!supported || initialized) return;
-  initialized = true;
+/**
+ * Show notifications while the app is open, and create the Android channel.
+ * Android 13+ won't show the permission prompt until a channel exists, so
+ * ensurePermission waits for this before asking.
+ */
+export function initNotifications(): Promise<void> {
+  if (!supported) return Promise.resolve();
+  if (ready) return ready;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -20,18 +27,19 @@ export function initNotifications() {
       shouldSetBadge: false,
     }),
   });
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'Cloudscreen',
-      importance: AndroidImportance.DEFAULT,
-    }).catch(() => {});
-  }
+  ready =
+    Platform.OS === 'android'
+      ? Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Cloudscreen', importance: AndroidImportance.DEFAULT })
+          .then(() => undefined)
+          .catch(() => undefined)
+      : Promise.resolve();
+  return ready;
 }
 
 /** Ask only when needed (NOTIF-001). */
 export async function ensurePermission(): Promise<boolean> {
   if (!supported) return false;
-  initNotifications();
+  await initNotifications(); // the channel must exist before Android 13+ will show the prompt
   const cur = await Notifications.getPermissionsAsync();
   if (cur.granted) return true;
   if (!cur.canAskAgain) return false;
@@ -41,14 +49,27 @@ export async function ensurePermission(): Promise<boolean> {
 
 async function scheduleAt(identifier: string, date: Date, title: string, body: string) {
   if (!supported) return;
+  await initNotifications();
   await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => {});
   const seconds = Math.round((date.getTime() - Date.now()) / 1000);
   if (seconds < 1) return;
   await Notifications.scheduleNotificationAsync({
     identifier,
     content: { title, body },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
+    // name our channel; without it Android files these under a generic "Miscellaneous" channel
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, channelId: CHANNEL },
   }).catch(() => {});
+}
+
+/** True when a real OS notification can be shown (native + permission). */
+export async function canNotify(): Promise<boolean> {
+  if (!supported) return false;
+  return (await Notifications.getPermissionsAsync().catch(() => null))?.granted ?? false;
+}
+
+/** The demo's one scripted notification (fixed id, so restarting the demo replaces it). */
+export async function scheduleDemoNudge(afterSec: number, title: string, body: string) {
+  await scheduleAt('demo-nudge', new Date(Date.now() + afterSec * 1000), title, body);
 }
 
 export async function cancel(identifier: string) {
@@ -57,9 +78,10 @@ export async function cancel(identifier: string) {
 }
 
 const BURN_TEXT: Record<string, { title: string; body: (min: number | null) => string }> = {
-  '0.5': { title: 'Halfway to your estimated burn threshold', body: () => 'Estimated. Consider shade or checking your sunscreen.' },
-  '0.8': { title: 'About 80% of your estimated burn threshold', body: () => 'Estimated. Consider shade or reapplying sunscreen soon.' },
-  '1': { title: 'Estimated burn threshold reached', body: () => 'This is an estimate, not a diagnosis. Consider getting out of the sun.' },
+  // Alerts fire on the cautious estimate (high end of the measured UV error), hence "may".
+  '0.5': { title: 'You may be halfway to your burn threshold', body: () => 'Cautious estimate. Consider shade or checking your sunscreen.' },
+  '0.8': { title: 'You may be at 80% of your burn threshold', body: () => 'Cautious estimate. Consider shade or reapplying sunscreen soon.' },
+  '1': { title: 'You may have reached your burn threshold', body: () => 'This is a cautious estimate, not a diagnosis. Consider getting out of the sun.' },
 };
 
 /**

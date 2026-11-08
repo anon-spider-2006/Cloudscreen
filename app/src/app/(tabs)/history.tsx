@@ -3,12 +3,13 @@ import { useMemo } from 'react';
 import { Pressable } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 
-import { Bar, Button, Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
+import { Bar, Button, Card, Disclaimer, keep, Label, Muted, Row, Screen } from '@/components/cs/ui';
+import { TrendsCard } from '@/components/cs/trends';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
-import { localDayKey, skinDose, summarizeDays } from '@/engine';
+import { activityLabel, localDayKey, skinDose, summarizeDays } from '@/engine';
+import { useNow } from '@/hooks/use-app';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtDay, fmtPct, fmtSED, fmtShortDuration, fmtTime } from '@/utils/format';
 
@@ -17,10 +18,12 @@ export default function History() {
   const sessions = useStore((s) => s.sessions);
   const profile = useStore((s) => s.profile);
   const days = useMemo(() => summarizeDays(sessions, skinProfile(profile)), [sessions, profile]);
+  // app clock (the demo clock in demo mode), bucketed to the hour
+  const hour = Math.floor(useNow() / 3_600_000);
 
   const last14 = useMemo(() => {
     const out: { key: string; sed: number; frac: number; t: number }[] = [];
-    const today = new Date();
+    const today = new Date(hour * 3_600_000);
     today.setHours(12, 0, 0, 0);
     for (let i = 13; i >= 0; i--) {
       const t = today.getTime() - i * 86_400_000;
@@ -29,13 +32,14 @@ export default function History() {
       out.push({ key, sed: d?.unprotectedSED ?? 0, frac: d?.peakFraction ?? 0, t });
     }
     return out;
-  }, [days]);
+  }, [days, hour]);
 
   const maxSed = Math.max(1, ...last14.map((d) => d.sed));
 
   return (
     <Screen>
       <ThemedText type="subtitle">History</ThemedText>
+      <TrendsCard />
       <Card>
         <Label>Last 14 days · skin dose</Label>
         <Svg width="100%" height={110} viewBox="0 0 320 110" accessibilityLabel="Daily unprotected skin dose for the last 14 days">
@@ -66,7 +70,7 @@ export default function History() {
         <Card key={d.day}>
           <Row style={{ justifyContent: 'space-between' }}>
             <ThemedText type="smallBold">{fmtDay(Date.parse(`${d.day}T12:00:00`))}</ThemedText>
-            <Muted>
+            <Muted style={keep}>
               {fmtShortDuration(d.outdoorSeconds)} · {fmtSED(d.unprotectedSED)}
             </Muted>
           </Row>
@@ -78,11 +82,11 @@ export default function History() {
               <Pressable key={s.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/session/[id]', params: { id: s.id } })}>
                 <Row style={{ justifyContent: 'space-between', paddingVertical: 6 }}>
                   <ThemedText type="small">
-                    {fmtTime(s.startedAt)}–{fmtTime(s.endedAt ?? s.lastT)} · {PRESETS[s.preset].label}
+                    {fmtTime(s.startedAt)}–{fmtTime(s.endedAt ?? s.lastT)} · {activityLabel(s.preset, s.settings)}
                     {s.trackingMode === 'retroactive' ? ' · added later' : ''}
                     {s.demo ? ' · demo' : ''}
                   </ThemedText>
-                  <ThemedText type="small" style={{ color: c.tint }}>
+                  <ThemedText type="small" style={[keep, { color: c.text }]}>
                     {fmtSED(skinDose(s).protectedSED)} ›
                   </ThemedText>
                 </Row>

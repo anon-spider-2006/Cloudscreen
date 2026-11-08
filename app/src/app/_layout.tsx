@@ -34,8 +34,8 @@ export default function RootLayout() {
   const scheme = useColorScheme();
   const hydrated = useHydrated();
   const [fontsLoaded, fontError] = useFonts({
-    GildaDisplay: require('../../assets/fonts/GildaDisplay-Regular.ttf'),
-    Karla: require('../../assets/fonts/Karla.ttf'),
+    BricolageGrotesque: require('../../assets/fonts/BricolageGrotesque.ttf'),
+    DMSans: require('../../assets/fonts/DMSans.ttf'),
   });
 
   useEffect(() => {
@@ -55,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="add-session" options={{ title: 'Add time outside', presentation: 'modal' }} />
         <Stack.Screen name="checkin" options={{ title: 'Morning check-in', presentation: 'modal' }} />
         <Stack.Screen name="session/[id]" options={{ title: 'Session' }} />
+        <Stack.Screen name="demo" options={{ title: 'Demo', presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );

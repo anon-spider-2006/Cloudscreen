@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Pressable } from "react-native";
 
+import { ActivityPicker } from "@/components/cs/activity-picker";
 import { PlanStrip, UVChart } from "@/components/cs/charts";
 import {
   Card,
@@ -16,7 +17,7 @@ import { uvCategory } from "@/constants/theme";
 import { planDay, readAt } from "@/engine";
 import { useNow } from "@/hooks/use-app";
 import { useTheme } from "@/hooks/use-theme";
-import { PRESETS, type Preset } from "@/model";
+import type { ExposureSettings } from "@/model";
 import {
   defaultSunscreen,
   settingsFor,
@@ -37,10 +38,6 @@ const DURATIONS = [15, 30, 45, 60, 90, 120, 180].map((m) => ({
   value: m,
   label: m < 60 ? `${m} min` : `${m / 60} h`,
 }));
-const PRESET_OPTIONS = (Object.keys(PRESETS) as Preset[]).map((k) => ({
-  value: k,
-  label: PRESETS[k].label,
-}));
 
 export default function Forecast() {
   const c = useTheme();
@@ -49,16 +46,21 @@ export default function Forecast() {
   const forecast = useStore((s) => s.forecast);
   const profile = useStore((s) => s.profile);
   const shade = useStore((s) => s.shade);
+  const custom = useStore((s) => s.custom);
+  const satellite = useStore((s) => s.satellite);
   const [dayIdx, setDayIdx] = useState(1);
   const [duration, setDuration] = useState(45);
-  const [preset, setPreset] = useState<Preset>(profile.preset);
+  // the planner's own copy, starting from what you last chose on Track
+  const [activity, setActivity] = useState<ExposureSettings>(() =>
+    settingsFor({ profile, shade, custom }),
+  );
   const [withSunscreen, setWithSunscreen] = useState<"none" | "spf">("none");
   const [selected, setSelected] = useState<number | null>(null);
   const hourKey = Math.floor(now / 3_600_000);
 
   const ctx = useMemo(
-    () => uvContext({ place, forecast, profile }),
-    [place, forecast, profile],
+    () => uvContext({ place, forecast, profile, satellite }),
+    [place, forecast, profile, satellite],
   );
 
   const days = useMemo(() => {
@@ -102,17 +104,13 @@ export default function Forecast() {
       durationMin: duration,
       ctx,
       profile: skinProfile(profile),
-      settings: settingsFor({
-        profile: { ...profile, preset },
-        shade,
-        custom: null,
-      }),
+      settings: activity,
       sunscreen:
         withSunscreen === "spf"
           ? defaultSunscreen(profile, days[dayIdx])
           : null,
     });
-  }, [ctx, days, dayIdx, duration, preset, withSunscreen, profile, shade]);
+  }, [ctx, days, dayIdx, duration, activity, withSunscreen, profile]);
 
   if (!ctx) {
     return (
@@ -192,8 +190,12 @@ export default function Forecast() {
         </Label>
         <Muted>How long?</Muted>
         <Chips options={DURATIONS} value={duration} onChange={setDuration} />
-        <Muted>Doing what?</Muted>
-        <Chips options={PRESET_OPTIONS} value={preset} onChange={setPreset} />
+        <ActivityPicker
+          title="Doing what?"
+          value={activity}
+          onChange={setActivity}
+          preferPreset={profile.preset}
+        />
         <Chips
           options={[
             { value: "none", label: "No sunscreen" },

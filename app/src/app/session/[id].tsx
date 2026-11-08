@@ -1,12 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Alert, Platform } from 'react-native';
 
-import { Bar, Button, Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
+import { Bar, Button, Card, Disclaimer, keep, Label, Muted, Row, Screen, wrapRight } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
-import { currentFraction, describeSettings, localDayKey, skinDose } from '@/engine';
+import { activityLabel, currentFraction, describeSettings, localDayKey, skinDose } from '@/engine';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtDay, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
@@ -46,7 +45,7 @@ export default function SessionDetail() {
       <Card>
         <Label>{fmtDay(session.startedAt)}</Label>
         <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-          {fmtTime(session.startedAt)}–{fmtTime(session.endedAt ?? session.lastT)} · {PRESETS[session.preset].label}
+          {fmtTime(session.startedAt)}–{fmtTime(session.endedAt ?? session.lastT)} · {activityLabel(session.preset, session.settings)}
         </ThemedText>
         <Muted>
           {fmtShortDuration(session.outdoorSeconds)} outside · avg UV {avgUVI.toFixed(1)} · max UV {session.maxUVI.toFixed(1)}
@@ -69,15 +68,15 @@ export default function SessionDetail() {
         <Label>Dose</Label>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>On skin, with sunscreen</ThemedText>
-          <ThemedText type="smallBold">{fmtSED(dose.protectedSED)}</ThemedText>
+          <ThemedText type="smallBold" style={keep}>{fmtSED(dose.protectedSED)}</ThemedText>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Unprotected skin dose</Muted>
-          <Muted>{fmtSED(dose.unprotectedSED)}</Muted>
+          <Muted style={keep}>{fmtSED(dose.unprotectedSED)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Ambient (flat surface)</Muted>
-          <Muted>{fmtSED(session.ambientSED)}</Muted>
+          <Muted style={keep}>{fmtSED(session.ambientSED)}</Muted>
         </Row>
       </Card>
 
@@ -85,8 +84,8 @@ export default function SessionDetail() {
         <Label>Timeline</Label>
         {session.events.map((e, i) => (
           <Row key={`${e.t}-${i}`} style={{ justifyContent: 'space-between' }}>
-            <Muted>{fmtTime(e.t)}</Muted>
-            <ThemedText type="small">
+            <Muted style={keep}>{fmtTime(e.t)}</Muted>
+            <ThemedText type="small" style={wrapRight}>
               {e.kind === 'settings' ? `Changed to ${e.detail}` : e.kind === 'sunscreen' ? `Sunscreen ${e.detail}` : `${e.kind[0].toUpperCase()}${e.kind.slice(1)}${e.detail ? ` · ${e.detail}` : ''}`}
             </ThemedText>
           </Row>

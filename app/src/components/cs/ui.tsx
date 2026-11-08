@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DemoStrip, useInDemo } from '@/components/cs/demo-strip';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,24 +11,36 @@ import { useTheme } from '@/hooks/use-theme';
 export function Screen({ children, tabbed = true }: { children: ReactNode; tabbed?: boolean }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
+  const demo = useInDemo();
+  // in demo, a sticky coral strip sits under the status bar and the content starts below it
+  const topInset = tabbed ? insets.top : 0;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.background }}
       contentInsetAdjustmentBehavior="automatic"
+      stickyHeaderIndices={demo ? [0] : undefined}
       contentContainerStyle={{
-        paddingTop: insets.top + Spacing.four,
+        paddingTop: demo ? 0 : insets.top + Spacing.four,
         paddingBottom: insets.bottom + (tabbed ? BottomTabInset + 88 : 0) + Spacing.five,
-        paddingHorizontal: Spacing.four,
-        alignItems: 'center',
+        paddingHorizontal: demo ? 0 : Spacing.four,
+        alignItems: demo ? 'stretch' : 'center',
       }}>
-      <View style={styles.column}>{children}</View>
+      {demo ? <DemoStrip topInset={topInset} /> : null}
+      {demo ? (
+        // full-width wrapper so the column's width: '100%' resolves against the screen, not its content
+        <View style={{ width: '100%', alignItems: 'center', paddingHorizontal: Spacing.four, paddingTop: Spacing.four }}>
+          <View style={styles.column}>{children}</View>
+        </View>
+      ) : (
+        <View style={styles.column}>{children}</View>
+      )}
     </ScrollView>
   );
 }
 
-export function Card({ children, style, tone = 'plain' }: { children: ReactNode; style?: StyleProp<ViewStyle>; tone?: 'plain' | 'sun' | 'tint' }) {
+export function Card({ children, style, tone = 'plain' }: { children: ReactNode; style?: StyleProp<ViewStyle>; tone?: 'plain' | 'sun' | 'tint' | 'sky' }) {
   const c = useTheme();
-  const bg = tone === 'sun' ? c.sunSoft : tone === 'tint' ? c.backgroundSelected : c.backgroundElement;
+  const bg = tone === 'sun' ? c.sunSoft : tone === 'tint' ? c.backgroundSelected : tone === 'sky' ? c.skySoft : c.backgroundElement;
   return <View style={[styles.card, { backgroundColor: bg, borderColor: c.border, ...(tone === 'plain' ? { paddingHorizontal: 0 } : {}) }, style]}>{children}</View>;
 }
 
@@ -51,6 +64,11 @@ export function Big({ children, color }: { children: ReactNode; color?: string }
   return <ThemedText style={[styles.big, color ? { color } : null]}>{children}</ThemedText>;
 }
 
+/** In a label/value row: a short value that must stay on one line (numbers, doses). */
+export const keep = { flexShrink: 0 } as const;
+/** In a label/value row: a long value that may wrap, aligned to the right edge. */
+export const wrapRight = { flexShrink: 1, textAlign: 'right' } as const;
+
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.row, style]}>{children}</View>;
 }
@@ -72,7 +90,7 @@ export function Button({
 }) {
   const c = useTheme();
   const bg = kind === 'primary' ? c.tint : kind === 'danger' ? c.danger : kind === 'sun' ? c.sun : c.backgroundSelected;
-  const fg = kind === 'secondary' ? c.text : kind === 'sun' ? c.onSun : c.onTint;
+  const fg = kind === 'danger' ? c.background : kind === 'secondary' ? c.text : kind === 'sun' ? '#2A1E00' : c.onTint;
   return (
     <Pressable
       accessibilityRole="button"
@@ -137,7 +155,7 @@ export function Bar({ fraction, color }: { fraction: number; color: string }) {
 export function Banner({ text, onPress, tone = 'sun' }: { text: string; onPress?: () => void; tone?: 'sun' | 'danger' | 'tint' }) {
   const c = useTheme();
   const bg = tone === 'danger' ? c.danger : tone === 'tint' ? c.tint : c.sun;
-  const fg = tone === 'sun' ? c.onSun : c.onTint;
+  const fg = tone === 'danger' ? c.background : tone === 'sun' ? '#2A1E00' : c.onTint;
   return (
     <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={[styles.banner, { backgroundColor: bg }]}>
       <ThemedText type="smallBold" style={{ color: fg }}>
@@ -151,7 +169,7 @@ export function LinkText({ children, onPress }: { children: ReactNode; onPress: 
   const c = useTheme();
   return (
     <Pressable onPress={onPress} accessibilityRole="link" hitSlop={8}>
-      <ThemedText type="smallBold" style={{ color: c.tint }}>
+      <ThemedText type="smallBold" style={{ color: c.text, textDecorationLine: 'underline' }}>
         {children}
       </ThemedText>
     </Pressable>
@@ -170,7 +188,7 @@ const styles = StyleSheet.create({
   column: { width: '100%', maxWidth: MaxContentWidth, gap: Spacing.four },
   card: { borderRadius: 0, padding: Spacing.four, gap: 12, borderTopWidth: 1 },
   label: { textTransform: 'uppercase', letterSpacing: 1.8, fontSize: 12 },
-  big: { fontFamily: Fonts.serif, fontSize: 80, lineHeight: 88, fontWeight: 400 },
+  big: { fontFamily: Fonts.display, fontSize: 80, lineHeight: 88, fontWeight: 800, letterSpacing: -3 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
   button: { minHeight: 50, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.four },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },

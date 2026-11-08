@@ -1,94 +1,83 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
-
-import { Button, Card, Chips, Label, Muted, Screen } from '@/components/cs/ui';
+import { useState } from 'react';
+import { View } from 'react-native';
+import Svg, { Path, Circle } from 'react-native-svg';
+import { ActivityPicker } from '@/components/cs/activity-picker';
+import { Select, DateSelect } from '@/components/cs/select';
+import { Button, Card, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS, SHADES, type Preset, type Shade } from '@/model';
-import { nowFor, useStore } from '@/state/store';
+import { presetMatching } from '@/engine';
+import type { ExposureSettings } from '@/model';
+import { nowFor, settingsFor, useStore } from '@/state/store';
 import { fmtTime } from '@/utils/format';
 
-const PRESET_OPTIONS = (Object.keys(PRESETS) as Preset[]).map((k) => ({ value: k, label: PRESETS[k].label }));
-const SHADE_OPTIONS = (Object.keys(SHADES) as Shade[]).map((k) => ({ value: k, label: SHADES[k].label }));
-const DURATIONS = [15, 30, 45, 60, 90, 120, 180, 240].map((m) => ({ value: m, label: m < 60 ? `${m} min` : `${m / 60} h` }));
+const midnight = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
 export default function AddSession() {
   const c = useTheme();
   const profile = useStore((s) => s.profile);
   const add = useStore((s) => s.addPastSession);
-  const [day, setDay] = useState<0 | 1>(0);
-  const [startHour, setStartHour] = useState<number | null>(null);
-  const [duration, setDuration] = useState(60);
-  const [preset, setPreset] = useState<Preset>(profile.preset);
-  const [shade, setShade] = useState<Shade>('none');
+  const now = nowFor(profile);
+  const today = midnight(now);
+  const yesterdayDate = new Date(today); yesterdayDate.setDate(yesterdayDate.getDate() - 1);
+  const [date, setDate] = useState(today);
+  const [startMinute, setStartMinute] = useState<number | null>(null);
+  const [hours, setHours] = useState(1);
+  const [minutes, setMinutes] = useState(0);
+  // same picker and starting point as Track: whatever you last chose
+  const storeShade = useStore((s) => s.shade);
+  const custom = useStore((s) => s.custom);
+  const [activity, setActivity] = useState<ExposureSettings>(() => settingsFor({ profile, shade: storeShade, custom }));
   const [sunscreen, setSunscreen] = useState<'none' | 'start'>('none');
   const [error, setError] = useState<string | null>(null);
-  const now = useMemo(() => nowFor(profile), [profile]);
+  const duration = hours * 60 + minutes;
+  const startDate = new Date(date);
+  if (startMinute !== null) startDate.setHours(Math.floor(startMinute / 60), startMinute % 60, 0, 0);
+  const start = startMinute === null ? null : startDate.getTime();
+  const end = start === null ? null : start + duration * 60_000;
+  const starts = Array.from({ length: 96 }, (_, i) => {
+    const d = new Date(date); d.setHours(Math.floor(i / 4), (i % 4) * 15, 0, 0);
+    return { value: i * 15, label: fmtTime(d.getTime()), time: d.getTime() };
+  }).filter((o) => o.time < now);
+  const validation = duration === 0 ? 'Choose a duration greater than zero.' : start !== null && end !== null && end > now ? 'This session ends in the future. Choose an earlier start or a shorter duration.' : null;
 
-  // half-hour start options from 6:00 to 20:00 that have already ended
-  const starts = useMemo(() => {
-    const d = new Date(now);
-    d.setHours(0, 0, 0, 0);
-    const base = d.getTime() - day * 86_400_000;
-    const out: { value: number; label: string }[] = [];
-    for (let h = 6; h <= 20; h += 0.5) {
-      const t = base + h * 3_600_000;
-      if (t + 15 * 60_000 <= now) out.push({ value: t, label: fmtTime(t) });
-    }
-    return out;
-  }, [now, day]);
-
-  const start = startHour !== null && starts.some((s) => s.value === startHour) ? startHour : null;
-  const end = start !== null ? Math.min(start + duration * 60_000, now) : null;
-
-  return (
-    <Screen tabbed={false}>
-      <Card>
-        <Label>Which day?</Label>
-        <Chips
-          options={[
-            { value: 0 as const, label: 'Today' },
-            { value: 1 as const, label: 'Yesterday' },
-          ]}
-          value={day}
-          onChange={setDay}
-        />
-        <Label>Started at</Label>
-        {starts.length ? <Chips options={starts} value={start} onChange={setStartHour} /> : <Muted>No past daylight times yet today.</Muted>}
-        <Label>For how long?</Label>
-        <Chips options={DURATIONS} value={duration} onChange={setDuration} />
-        {start !== null && end !== null ? (
-          <Muted>
-            {fmtTime(start)}–{fmtTime(end)}
-            {end < start + duration * 60_000 ? ' (trimmed to now)' : ''}
-          </Muted>
-        ) : null}
-        <Label>Doing what?</Label>
-        <Chips options={PRESET_OPTIONS} value={preset} onChange={setPreset} />
-        <Label>Shade</Label>
-        <Chips options={SHADE_OPTIONS} value={shade} onChange={setShade} />
-        <Label>Sunscreen</Label>
-        <Chips
-          options={[
-            { value: 'none' as const, label: 'None' },
-            { value: 'start' as const, label: `SPF ${profile.spf} at the start` },
-          ]}
-          value={sunscreen}
-          onChange={setSunscreen}
-        />
-      </Card>
-      {error ? <ThemedText style={{ color: c.danger }}>{error}</ThemedText> : null}
-      <Button
-        title="Add session"
-        disabled={start === null || end === null}
-        onPress={() => {
-          if (start === null || end === null) return;
-          const r = add({ start, end, preset, shade, sunscreenAt: sunscreen === 'start' ? start : null });
-          if (r.ok) router.back();
-          else setError(r.reason);
-        }}
-      />
-      <Muted>Calculated from the forecast for those hours, so it’s labelled “added later · estimated”.</Muted>
-    </Screen>
-  );
+  return <Screen tabbed={false}>
+    <Row style={{ justifyContent: 'space-between' }}>
+      <View style={{ flex: 1, gap: 8 }}><ThemedText type="subtitle">A moment outside.</ThemedText></View>
+      <Svg width={100} height={84} viewBox="0 0 120 100" aria-hidden>
+        <Circle cx={85} cy={30} r={23} fill={c.sun} />
+        <Path d="M20 76 C0 76 0 46 23 44 C20 14 66 8 74 39 C105 28 122 74 92 76 Z" fill={c.skyIcon} stroke={c.text} strokeWidth={1.5} />
+        <Path d="M25 86 H80 M38 94 H68" stroke={c.coral} strokeWidth={3} />
+      </Svg>
+    </Row>
+    <Card>
+      <DateSelect value={date} min={yesterdayDate.getTime()} max={today} onChange={(v) => { setDate(v); setStartMinute(null); setError(null); }} />
+      <Select label="Started at" value={startMinute} options={starts} onChange={setStartMinute} />
+      <Muted>Start times are in 15-minute steps, in your device’s local time.</Muted>
+      <Label>For how long?</Label>
+      <Row style={{ alignItems: 'flex-start' }}>
+        <View style={{ flex: 1 }}><Select label="Hours" value={hours} options={Array.from({ length: 25 }, (_, value) => ({ value, label: `${value} h` }))} onChange={setHours} /></View>
+        <View style={{ flex: 1 }}><Select label="Minutes" value={minutes} options={Array.from({ length: 60 }, (_, value) => ({ value, label: `${value} min` }))} onChange={setMinutes} /></View>
+      </Row>
+      {start !== null && end !== null ? <Muted>{new Date(start).toLocaleDateString()} · {fmtTime(start)} → {new Date(end).toLocaleDateString()} · {fmtTime(end)}</Muted> : null}
+      {validation ? <ThemedText type="small" style={{ color: c.danger }}>{validation}</ThemedText> : null}
+    </Card>
+    <Card>
+      <ActivityPicker title="What were you doing?" value={activity} onChange={setActivity} preferPreset={profile.preset} />
+    </Card>
+    <Card>
+      <Select label="Sunscreen" value={sunscreen} options={[{ value: 'none', label: 'None' }, { value: 'start', label: `SPF ${profile.spf} at the start` }]} onChange={setSunscreen} />
+    </Card>
+    {error ? <ThemedText accessibilityRole="alert" style={{ color: c.danger }}>{error}</ThemedText> : null}
+    <Button title="Add session" disabled={start === null || !!validation} onPress={() => {
+      if (start === null || end === null || validation) return;
+      const shade = activity.shade ?? 'none';
+      // label it with the matching preset (or keep the default name; History shows "Custom · …" when settings differ)
+      const preset = presetMatching(activity, profile.preset) ?? profile.preset;
+      const result = add({ start, end, preset, shade, sunscreenAt: sunscreen === 'start' ? start : null, settings: { ...activity, shade } });
+      if (result.ok) router.back(); else setError(result.reason);
+    }} />
+    <Muted>Calculated from the available forecast or UV estimate for those hours and labelled “added later · estimated”.</Muted>
+  </Screen>;
 }

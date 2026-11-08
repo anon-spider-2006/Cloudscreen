@@ -1,29 +1,24 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import { Banner, Bar, Big, Button, Card, Chips, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
+import { ActivityPicker } from '@/components/cs/activity-picker';
+import { Banner, Bar, Big, Button, Card, Disclaimer, keep, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
 import { currentSPF, explainRate, skinDose } from '@/engine';
 import { useNow } from '@/hooks/use-app';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
-import { ACTIVITIES, POSTURES, PRESETS, SHADES, SURFACES, burnFraction, type Activity, type Posture, type Preset, type Shade, type Surface } from '@/model';
+import { burnFraction } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
-import { fmtDuration, fmtMinutes, fmtPct, fmtSED, SITE_LABEL } from '@/utils/format';
+import { fmtBurnRange, fmtDuration, fmtMinutes, fmtPct, fmtSED, SITE_LABEL } from '@/utils/format';
 
-const PRESET_OPTIONS = (Object.keys(PRESETS) as Preset[]).map((k) => ({ value: k, label: PRESETS[k].label }));
-const SHADE_OPTIONS = (Object.keys(SHADES) as Shade[]).map((k) => ({ value: k, label: SHADES[k].label }));
-const POSTURE_OPTIONS = (Object.keys(POSTURES) as Posture[]).map((k) => ({ value: k, label: k === 'upright' ? 'Upright' : k === 'shoulders' ? 'Shoulders' : 'Lying' }));
-const SURFACE_OPTIONS = (Object.keys(SURFACES) as Surface[]).map((k) => ({ value: k, label: SURFACES[k].label }));
-const ACTIVITY_OPTIONS = (Object.keys(ACTIVITIES) as Activity[]).map((k) => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }));
 
 export default function Track() {
   const c = useTheme();
   const now = useNow();
   const cond = useConditions();
   const s = useStore();
-  const [customOpen, setCustomOpen] = useState(false);
   const a = s.active;
   const profile = skinProfile(s.profile);
 
@@ -35,7 +30,6 @@ export default function Track() {
   }, [a, profile]);
 
   const settings = a ? a.settings : cond?.settings;
-  const shadeOnReflective = settings && settings.shade && settings.shade !== 'none' && ['sand', 'water', 'snow'].includes(settings.surface);
 
   const rate = useMemo(() => {
     if (!cond || !a) return null;
@@ -81,16 +75,16 @@ export default function Track() {
               <Row key={x.site} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <ThemedText type={x === worst ? 'smallBold' : 'small'}>{SITE_LABEL[x.site]}</ThemedText>
-                  <ThemedText type={x === worst ? 'smallBold' : 'small'}>{fmtPct(x.fraction)}</ThemedText>
+                  <ThemedText type={x === worst ? 'smallBold' : 'small'} style={keep}>{fmtPct(x.fraction)}</ThemedText>
                 </Row>
                 <Bar fraction={x.fraction} color={fractionColor(x.fraction, c)} />
               </Row>
             ))}
             {worst && worst.fraction < 1 && ttbWorst ? (
               <ThemedText type="smallBold">
-                {ttbWorst.minutes === null
+                {ttbWorst.soonest === null
                   ? 'Not expected to reach your estimated threshold before sunset.'
-                  : `${SITE_LABEL[ttbWorst.site]} burn first · ${fmtMinutes(ttbWorst.minutes)} at forecast UV`}
+                  : `${SITE_LABEL[ttbWorst.site]} burn first · ${fmtBurnRange(ttbWorst)} more`}
               </ThemedText>
             ) : worst && worst.fraction >= 1 ? (
               <ThemedText type="smallBold" style={{ color: c.danger }}>
@@ -104,15 +98,15 @@ export default function Track() {
             <Label>Dose this session</Label>
             <Row style={{ justifyContent: 'space-between' }}>
               <ThemedText>On skin (with sunscreen)</ThemedText>
-              <ThemedText type="smallBold">{fmtSED(skinDose(a).protectedSED)}</ThemedText>
+              <ThemedText type="smallBold" style={keep}>{fmtSED(skinDose(a).protectedSED)}</ThemedText>
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>
               <Muted>Unprotected skin dose</Muted>
-              <Muted>{fmtSED(skinDose(a).unprotectedSED)}</Muted>
+              <Muted style={keep}>{fmtSED(skinDose(a).unprotectedSED)}</Muted>
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>
               <Muted>Ambient (flat surface)</Muted>
-              <Muted>{fmtSED(a.ambientSED)}</Muted>
+              <Muted style={keep}>{fmtSED(a.ambientSED)}</Muted>
             </Row>
             {rate ? (
               <Muted>
@@ -127,32 +121,20 @@ export default function Track() {
         <Card tone="sun">
           <Label>If you go out now (est.)</Label>
           <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {cond.ttb.bareWorst.minutes === null ? 'Not expected to reach your threshold today' : `${SITE_LABEL[cond.ttb.bareWorst.site]}: ${fmtMinutes(cond.ttb.bareWorst.minutes)} bare skin`}
+            {cond.ttb.bareWorst.soonest === null ? 'Not expected to reach your threshold today' : `${SITE_LABEL[cond.ttb.bareWorst.site]}: ${fmtBurnRange(cond.ttb.bareWorst)} bare skin`}
           </ThemedText>
           <Muted>
-            With SPF {s.profile.spf}: {cond.ttb.sunscreenWorst?.minutes == null ? 'not expected today' : fmtMinutes(cond.ttb.sunscreenWorst.minutes)}
+            With SPF {s.profile.spf}: {cond.ttb.sunscreenWorst ? fmtBurnRange(cond.ttb.sunscreenWorst).replace(/^Not/, 'not') : 'not expected today'}
           </Muted>
         </Card>
       )}
 
-      <Card>
-        <Label>What are you doing?</Label>
-        <Chips options={PRESET_OPTIONS} value={s.custom ? null : a ? a.preset : s.profile.preset} onChange={s.setPreset} />
-        <Label>Shade</Label>
-        <Chips options={SHADE_OPTIONS} value={a ? (a.settings.shade ?? 'none') : s.shade} onChange={s.setShade} />
-        {shadeOnReflective ? <Muted>Shade on {settings!.surface} protects less: UV reflects up from the ground.</Muted> : null}
-        <LinkText onPress={() => setCustomOpen((o) => !o)}>{customOpen ? 'Hide custom settings' : 'Customize posture, surface, activity ›'}</LinkText>
-        {customOpen && settings ? (
-          <>
-            <Muted>Posture</Muted>
-            <Chips options={POSTURE_OPTIONS} value={settings.posture} onChange={(posture) => s.setCustom({ ...settings, posture })} />
-            <Muted>Surface</Muted>
-            <Chips options={SURFACE_OPTIONS} value={settings.surface} onChange={(surface) => s.setCustom({ ...settings, surface })} />
-            <Muted>Activity</Muted>
-            <Chips options={ACTIVITY_OPTIONS} value={settings.activity} onChange={(activity) => s.setCustom({ ...settings, activity })} />
-          </>
-        ) : null}
-      </Card>
+      {settings ? (
+        <Card>
+          <ActivityPicker value={settings} onChange={s.setActivity} preferPreset={a ? a.preset : s.profile.preset} />
+          {a ? <Muted>Changes apply from now on; the dose so far is kept.</Muted> : null}
+        </Card>
+      ) : null}
 
       {a ? (
         <Row>

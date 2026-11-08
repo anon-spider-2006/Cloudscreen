@@ -9,6 +9,8 @@
  *  5. dose.ts        dose in SED, burn fraction vs MED_type × c_user
  *     calibration.ts next-day redness → c_user
  *     uvSource.ts    Open-Meteo forecast / physics / offline demo
+ *     satellite.ts   satellite-observed cloud effect, privacy-cell lattice
+ *     groundParams.ts fitted to ARPANSA radiometers (model-fit/ground_fit.py)
  */
 export * from './solar.ts';
 export * from './clearSky.ts';
@@ -18,3 +20,6 @@ export * from './sunscreen.ts';
 export * from './dose.ts';
 export * from './calibration.ts';
 export * from './uvSource.ts';
+export * from './satellite.ts';
+export * from './uncertainty.ts';
+export { GROUND_PARAMS, GROUND_FIT_INFO } from './groundParams.ts';

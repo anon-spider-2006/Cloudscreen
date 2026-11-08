@@ -1,0 +1,2 @@
+# Local test-tool bootstrap used by the agent, not part of the app.
+/.test-tools/

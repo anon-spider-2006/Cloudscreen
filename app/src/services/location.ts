@@ -5,7 +5,20 @@ export interface Place {
   lon: number;
   name: string;
   source: 'gps' | 'manual' | 'demo';
+  /**
+   * Horizontal uncertainty, km. GPS: the fix's reported accuracy (large when the
+   * user turned off Precise Location / granted only coarse). Manual city: the
+   * user could be anywhere in town. Never sent off device.
+   */
+  accuracyKm?: number;
+  /** Elevation above sea level, m (demo places; real places take it from the forecast). */
+  elevationM?: number;
 }
+
+/** Assumed spread of a picked city (km). */
+export const MANUAL_ACCURACY_KM = 10;
+
+export const accuracyKmOf = (p: Place) => p.accuracyKm ?? (p.source === 'gps' ? 1 : p.source === 'manual' ? MANUAL_ACCURACY_KM : 0);
 
 /** Manual choices (LOC-003) and the demo scenario. */
 export const CITIES: Place[] = [
@@ -21,7 +34,6 @@ export const CITIES: Place[] = [
   { name: 'Singapore', lat: 1.3521, lon: 103.8198, source: 'manual' },
 ];
 
-export const DEMO_PLACE: Place = { name: 'Miami, FL (demo)', lat: 25.7617, lon: -80.1918, source: 'demo' };
 
 export type LocateResult = { ok: true; place: Place } | { ok: false; reason: 'denied' | 'unavailable' };
 
@@ -42,7 +54,10 @@ export async function locate(): Promise<LocateResult> {
     } catch {
       // geocoder unavailable: keep generic name
     }
-    return { ok: true, place: { lat, lon, name, source: 'gps' } };
+    // reduced/coarse permission still returns a fix, just with a large accuracy radius; the
+    // 0.01° rounding adds up to ~0.8 km, so never claim better than 1 km
+    const accuracyKm = Math.max(1, (pos.coords.accuracy ?? 1000) / 1000);
+    return { ok: true, place: { lat, lon, name, source: 'gps', accuracyKm } };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }

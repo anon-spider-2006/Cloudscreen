@@ -1,6 +1,5 @@
 /**
- * Cloudscreen design tokens (§16.1). Apothecary palette: honey yellow, warm black, cream and kraft,
- * with a botanical green. Black buttons in light mode, honey buttons in dark mode.
+ * Cloudscreen design tokens. Bright sky, lemon and coral accents with calm, readable surfaces.
  */
 
 import '@/global.css';
@@ -9,16 +8,16 @@ import { Platform } from 'react-native';
 
 export const Colors = {
   light: {
-    text: '#24394B', background: '#F7F3E9', backgroundElement: '#F7F3E9',
-    backgroundSelected: '#DCE5EB', textSecondary: '#526878', tint: '#233294',
-    onTint: '#FFFFFF', sun: '#EBC56B', sunSoft: '#F2E4BA', border: '#C6CBC6',
-    danger: '#AD4036', warning: '#956019', success: '#39715A', track: '#DFE3DF',
+    text: '#152F42', background: '#FFFCF4', backgroundElement: '#FFFCF4',
+    backgroundSelected: '#97D7EF', textSecondary: '#415F6D', tint: '#97D7EF', skySoft: '#C6E8F5', skyIcon: '#C6E8F5',
+    onTint: '#152F42', sun: '#FFDF38', sunSoft: '#FFEC80', coral: '#FF8669', border: '#CBD7D4',
+    danger: '#B82E39', warning: '#926000', success: '#267551', track: '#DBE9E6',
   },
   dark: {
-    text: '#F4EEE1', background: '#192D3C', backgroundElement: '#192D3C',
-    backgroundSelected: '#30495C', textSecondary: '#B3C4CD', tint: '#B4C4FF',
-    onTint: '#192D3C', sun: '#EBC56B', sunSoft: '#443D2A', border: '#4C606B',
-    danger: '#FF9B8C', warning: '#EBC56B', success: '#9EC9B0', track: '#3B5260',
+    text: '#F7FAEF', background: '#142C3B', backgroundElement: '#142C3B',
+    backgroundSelected: '#244D61', textSecondary: '#B8D0D8', tint: '#97D7EF', skySoft: '#2E5D73', skyIcon: '#C6E8F5',
+    onTint: '#152F42', sun: '#FFDF38', sunSoft: '#514824', coral: '#FF8669', border: '#476472',
+    danger: '#FF8B94', warning: '#FFDF38', success: '#80EAB0', track: '#345361',
   },
 } as const;
 
@@ -39,11 +38,12 @@ export function fractionColor(f: number, c: Palette): string {
   if (f >= 1) return c.danger;
   if (f >= 0.8) return c.warning;
   if (f >= 0.5) return c.sun;
-  return c.calm;
+  return c.tint;
 }
 
 export const Fonts = {
-  sans: 'Karla', serif: 'GildaDisplay', rounded: 'Karla',
+  sans: Platform.select({ web: 'Geneva, Arial, sans-serif', default: 'Geneva' }),
+  display: 'BricolageGrotesque', rounded: Platform.select({ web: 'Geneva, Arial, sans-serif', default: 'Geneva' }),
   mono: Platform.select({ ios: 'Menlo', default: 'monospace' }),
 };
 

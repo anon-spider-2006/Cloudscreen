@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 
 import { SunMark } from '@/components/cs/sun-mark';
-import { Button, Card, Chips, Label, Muted, Screen } from '@/components/cs/ui';
+import { Button, Card, Chips, Label, LinkText, Muted, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
 import type { SkinType } from '@/model';
@@ -26,7 +26,6 @@ export default function Onboarding() {
   const setProfile = useStore((s) => s.setProfile);
   const setPlace = useStore((s) => s.setPlace);
   const place = useStore((s) => s.place);
-  const startDemo = useStore((s) => s.startDemo);
   const [step, setStep] = useState(0);
   const [skin, setSkin] = useState<SkinType | 0 | null>(null);
   const [spf, setSpf] = useState(30);
@@ -99,14 +98,6 @@ export default function Onboarding() {
           <Muted>Or pick a city</Muted>
           <Chips options={CITIES.map((x, i) => ({ value: i, label: x.name }))} value={place ? CITIES.findIndex((x) => x.name === place.name) : null} onChange={(i) => setPlace(CITIES[i])} />
           <Button title="Next" disabled={!place} onPress={() => setStep(3)} />
-          <Button
-            kind="sun"
-            title="Skip: try the offline demo"
-            onPress={() => {
-              startDemo();
-              setStep(3);
-            }}
-          />
         </Card>
       ) : null}
 
@@ -118,6 +109,10 @@ export default function Onboarding() {
           <Button kind="secondary" title="Not now" onPress={() => finish(false)} />
         </Card>
       ) : null}
+
+      <View style={{ alignItems: 'center' }}>
+        <LinkText onPress={() => router.push('/demo')}>Just looking? Try the demo ›</LinkText>
+      </View>
 
       <Muted style={{ textAlign: 'center' }}>Cloudscreen gives estimates for sun-safety education. It isn’t a medical device and can’t diagnose sunburn or skin damage.</Muted>
     </Screen>

@@ -6,6 +6,28 @@ export function fmtMinutes(m: number | null): string {
   return r === 0 || r === 60 ? `~${r === 60 ? h + 1 : h} h` : `~${h} h ${r} min`;
 }
 
+/** Bare minutes/hours, no "~" (for ranges). */
+function plainMinutes(m: number): string {
+  return fmtMinutes(m).replace(/^~/, '');
+}
+
+/**
+ * Time-to-burn as a range: cautious (soonest) to optimistic (latest).
+ * "35–50 min", "1 h 10 min–2 h", "35 min or later", "possible after 3 h".
+ */
+export function fmtBurnRange(p: { minutes: number | null; soonest: number | null; latest: number | null }): string {
+  const { minutes, soonest, latest } = p;
+  if (soonest === null) return 'Not expected today';
+  if (minutes === null) return `Possible after ${plainMinutes(soonest)}`;
+  if (latest === null) return `${plainMinutes(soonest)} or later`;
+  const a = plainMinutes(soonest);
+  const b = plainMinutes(latest);
+  if (a === b) return fmtMinutes(soonest);
+  // share the unit when both are in minutes: "35–50 min"
+  if (soonest < 59.5 && latest < 59.5) return `${a.replace(' min', '')}–${b}`;
+  return `${a}–${b}`;
+}
+
 export function fmtDuration(sec: number): string {
   const s = Math.max(0, Math.floor(sec));
   const h = Math.floor(s / 3600);

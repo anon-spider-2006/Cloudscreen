@@ -8,7 +8,7 @@ import {
 } from 'expo-router/ui';
 import { Pressable, View, StyleSheet, type PressableProps } from 'react-native';
 
-import { Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -46,7 +46,7 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
-        <ThemedText style={{ fontSize: 12 }} type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+        <ThemedText style={{ fontSize: 12, textAlign: 'center' }} numberOfLines={1} type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
           {children}
         </ThemedText>
       </ThemedView>
@@ -58,10 +58,6 @@ export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          CS
-        </ThemedText>
-
         {props.children}
 
       </ThemedView>
@@ -84,24 +80,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.two,
     borderRadius: 0,
     borderTopWidth: 2,
-    borderTopColor: '#869FB2',
+    borderTopColor: '#97D7EF',
     flexDirection: 'row',
     alignItems: 'center',
     flexGrow: 1,
     gap: 2,
     maxWidth: MaxContentWidth,
   },
-  brandText: {
-    marginRight: 6,
-    fontFamily: Fonts.serif,
-    fontSize: 24,
-  },
   pressed: {
     opacity: 0.7,
   },
   tabButtonView: {
     paddingVertical: Spacing.one,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2, // "Forecast" needs the room on 320 px screens
     alignItems: 'center',
     minHeight: 44,
     justifyContent: 'center',

@@ -11,7 +11,8 @@ export type ThemedTextProps = TextProps & {
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
-  return <Text style={[{ fontFamily: Fonts.sans, color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  // flexShrink: in a row, native Text otherwise refuses to shrink and runs past the edge (web wraps on its own)
+  return <Text style={[{ fontFamily: Fonts.sans, color: theme[themeColor ?? 'text'], flexShrink: 1 }, styles[type], style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({
@@ -31,16 +32,18 @@ const styles = StyleSheet.create({
     fontWeight: 500,
   },
   title: {
-    fontFamily: Fonts.serif,
-    fontSize: 48,
-    fontWeight: 400,
+    fontFamily: Fonts.display,
+    fontSize: 44,
+    letterSpacing: -1.6,
+    fontWeight: 800,
     lineHeight: 52,
   },
   subtitle: {
-    fontFamily: Fonts.serif,
-    fontSize: 36,
+    fontFamily: Fonts.display,
+    fontSize: 34,
+    letterSpacing: -0.8,
     lineHeight: 44,
-    fontWeight: 400,
+    fontWeight: 800,
   },
   link: {
     lineHeight: 30,
@@ -49,7 +52,6 @@ const styles = StyleSheet.create({
   linkPrimary: {
     lineHeight: 30,
     fontSize: 14,
-    color: '#3c87f7',
   },
   code: {
     fontFamily: Fonts.mono,

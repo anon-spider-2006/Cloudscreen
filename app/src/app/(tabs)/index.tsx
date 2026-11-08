@@ -4,16 +4,16 @@ import { View } from 'react-native';
 
 import { SunMark } from '@/components/cs/sun-mark';
 import { UVChart } from '@/components/cs/charts';
-import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
+import { Banner, Bar, Big, Button, Card, Disclaimer, keep, Label, LinkText, Muted, Row, Screen, wrapRight } from '@/components/cs/ui';
+import { Wordmark } from '@/components/cs/wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
-import { currentSPF, localDayKey, readAt, summarizeDays } from '@/engine';
+import { activityLabel, currentSPF, localDayKey, readAt, summarizeDays } from '@/engine';
 import { useNow } from '@/hooks/use-app';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS } from '@/model';
 import { pendingCheckIn, skinProfile, useStore } from '@/state/store';
-import { fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
+import { fmtBurnRange, fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
 export default function Home() {
   const c = useTheme();
@@ -68,17 +68,16 @@ export default function Home() {
   const cat = uvCategory(reading.uvi);
   const mode = reading.mode;
   const stale = mode === 'forecast' && forecast ? now - forecast.fetchedAt > 3 * 3_600_000 && profile.uvMode === 'forecast' : false;
-  const preset = PRESETS[profile.preset];
   const todayFraction = today?.peakFraction ?? 0;
 
   return (
     <Screen>
       <View style={{ gap: 12 }}>
         <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: c.border, paddingBottom: 16 }}>
-          <Label>Cloudscreen / Your sun journal</Label>
+          <Wordmark />
           <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</ThemedText>
         </Row>
-        <ThemedText type="title">A little sun sense.</ThemedText>
+        <ThemedText type="title">Making your day a little brighter</ThemedText>
         <Muted>
           {place.name} · {mode === 'forecast' ? 'forecast' : mode === 'demo' ? 'demo (offline physics)' : 'physics fallback'}
           {forecast && mode === 'forecast' ? ` · updated ${fmtTime(forecast.fetchedAt)}` : ''}
@@ -93,8 +92,8 @@ export default function Home() {
       {reading.clamped ? <Banner tone="tint" text="The forecast value looked wrong and was limited to a physically plausible range." /> : null}
       {stale ? <Banner tone="tint" text="Forecast data is more than 3 hours old." /> : null}
 
-      <Card tone="tint">
-        <Label>01 / Under this sky</Label>
+      <Card tone="sky">
+        <Label>Under this sky</Label>
         <Muted>Current UV index</Muted>
         <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <Row style={{ flexWrap: 'wrap', flex: 1 }}><Big>{reading.uvi.toFixed(1)}</Big><SunMark size={96} /></Row>
@@ -107,49 +106,58 @@ export default function Home() {
 
       <Card tone="sun">
         <Row style={{ justifyContent: 'space-between' }}>
-          <Label>02 / Time to burn (est.)</Label>
-          <Muted>{preset.label}</Muted>
+          <Label>Time to burn (est.)</Label>
+          <Muted style={wrapRight}>{activityLabel(profile.preset, cond.settings)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
-          <ThemedText>Bare skin</ThemedText>
-          <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {ttb.bareWorst.minutes === null ? 'Not expected today' : fmtMinutes(ttb.bareWorst.minutes)}
+          <ThemedText style={keep}>Bare skin</ThemedText>
+          <ThemedText type="smallBold" style={[wrapRight, { fontSize: 20 }]}>
+            {fmtBurnRange(ttb.bareWorst)}
           </ThemedText>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
-          <ThemedText>With SPF {profile.spf}</ThemedText>
-          <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {ttb.sunscreenWorst?.minutes == null ? 'Not expected today' : fmtMinutes(ttb.sunscreenWorst.minutes)}
+          <ThemedText style={keep}>With SPF {profile.spf}</ThemedText>
+          <ThemedText type="smallBold" style={[wrapRight, { fontSize: 20 }]}>
+            {ttb.sunscreenWorst ? fmtBurnRange(ttb.sunscreenWorst) : 'Not expected today'}
           </ThemedText>
         </Row>
-        {ttb.bareWorst.minutes !== null ? <Muted>{SITE_LABEL[ttb.bareWorst.site]} burn first.</Muted> : <Muted>Not expected to reach your estimated threshold before sunset. That’s not a guarantee of no damage.</Muted>}
+        {ttb.bareWorst.soonest !== null ? (
+          <Muted>
+            {SITE_LABEL[ttb.bareWorst.site]} burn first.
+            {ttb.bareWorst.minutes !== null && ttb.bareWorst.soonest !== ttb.bareWorst.minutes
+              ? ` Most likely ${fmtMinutes(ttb.bareWorst.minutes)}; plan on the earlier time.`
+              : ''}
+          </Muted>
+        ) : (
+          <Muted>Not expected to reach your estimated threshold before sunset. That’s not a guarantee of no damage.</Muted>
+        )}
         <LinkText onPress={() => router.push('/why')}>Why this number? ›</LinkText>
       </Card>
 
       <Card>
-        <Label>03 / Your day outside</Label>
+        <Label>Your day outside</Label>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>Estimated burn progress</ThemedText>
-          <ThemedText type="smallBold">{fmtPct(todayFraction)}</ThemedText>
+          <ThemedText type="smallBold" style={keep}>{fmtPct(todayFraction)}</ThemedText>
         </Row>
         <Bar fraction={todayFraction} color={fractionColor(todayFraction, c)} />
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Skin dose (unprotected)</Muted>
-          <Muted>{fmtSED(today?.unprotectedSED ?? 0)}</Muted>
+          <Muted style={keep}>{fmtSED(today?.unprotectedSED ?? 0)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Ambient dose (flat surface)</Muted>
-          <Muted>{fmtSED(today?.ambientSED ?? 0)}</Muted>
+          <Muted style={keep}>{fmtSED(today?.ambientSED ?? 0)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Time outside</Muted>
           <Muted>{fmtShortDuration(today?.outdoorSeconds ?? 0)}</Muted>
         </Row>
-        <Muted>1 SED (standard erythema dose) = 100 J/m² of sunburn-weighted UV. Fair skin typically reddens around 2.5–3 SED.</Muted>
+        <Muted>1 SED (standard erythema dose) = 100 J/m² of sunburn-weighted UV.</Muted>
       </Card>
 
       <Card>
-        <Label>04 / A layer of care</Label>
+        <Label>A layer of care</Label>
         <ThemedText>
           {lastSunscreen ? `SPF ${lastSunscreen.spfLabel} · applied ${fmtTime(lastSunscreen.appliedAt)} (${fmtMinutes((now - lastSunscreen.appliedAt) / 60_000)} ago)` : 'None logged today'}
         </ThemedText>
