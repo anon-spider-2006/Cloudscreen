@@ -19,20 +19,31 @@ import {
   advance,
   burnFraction,
   calibrationPromptTime,
+  doseBand,
   effectiveSPF,
   explainRate,
   newFilm,
   newSession,
   project,
   readUV,
-  updateCUser,
+  SAT_PIXEL_KM,
+  cUserOf,
+  medPosterior,
+  priorPosterior,
+  withSkin,
+  withSpatial,
+  type DoseReport,
+  type MedPosterior,
+  type SkinType,
   type CloudLayers,
+  type DoseBand,
   type ExposureSettings,
   type Forecast,
   type Posture,
   type Preset,
   type Redness,
   type SessionState,
+  type SatelliteObs,
   type Shade,
   type SkinProfile,
   type SunscreenApplication,
@@ -48,12 +59,19 @@ export interface UVContext {
   lat: number;
   lon: number;
   mode: UVMode;
+  /** Location uncertainty, km. Stays on device. */
+  accuracyKm?: number;
   forecast?: Forecast;
+  satellite?: SatelliteObs;
   demoClouds?: CloudLayers;
 }
 
 export function readAt(ctx: UVContext, t: number): UVReading {
-  return readUV({ t, lat: ctx.lat, lon: ctx.lon }, ctx.mode, { forecast: ctx.forecast, demoClouds: ctx.demoClouds });
+  return readUV({ t, lat: ctx.lat, lon: ctx.lon, accuracyKm: ctx.accuracyKm }, ctx.mode, {
+    forecast: ctx.forecast,
+    satellite: ctx.satellite,
+    demoClouds: ctx.demoClouds,
+  });
 }
 
 export const envAtFor = (ctx: UVContext) => (t: number) => readAt(ctx, t);
@@ -262,7 +280,8 @@ export function currentSPF(s: Session): number {
 
 export function skinDose(s: Session) {
   const st = s.sites[s.worstSite];
-  return { protectedSED: st?.doseSED ?? 0, unprotectedSED: st?.ambientSED ?? 0 };
+  // unprotected = what bare skin would have got (incl. wet skin); older sessions only have the physical dose
+  return { protectedSED: st?.doseSED ?? 0, unprotectedSED: st?.bareSED ?? st?.ambientSED ?? 0 };
 }
 
 export function describeSettings(x: ExposureSettings): string {
@@ -273,15 +292,68 @@ export function describeSettings(x: ExposureSettings): string {
 
 export interface SiteProjection {
   site: Posture;
+  /** Central estimate. null = not reached before the horizon (sunset or 12 h). */
   minutes: number | null;
+  /**
+   * Cautious: if UV runs at the high end of the measured error band (90th
+   * percentile, model-fit/ground_report.md). Plan on this one. Equals `minutes`
+   * in demo mode.
+   */
+  soonest: number | null;
+  /** Optimistic end (10th percentile). null = not before the horizon. */
+  latest: number | null;
 }
 
 export interface TimeToBurn {
   bare: SiteProjection[];
   withSunscreen: SiteProjection[] | null;
-  /** Worst site: smallest minutes. null minutes = not reached before horizon. */
+  /** Worst site: smallest cautious minutes. */
   bareWorst: SiteProjection;
   sunscreenWorst: SiteProjection | null;
+}
+
+/**
+ * Error band on burn fraction for a dose projected `hours` ahead from `now`:
+ * the measured UV band for the current source (+ spatial spread for coarse
+ * locations), combined with the person's MED uncertainty. Demo mode has no UV
+ * band (it's a scenario) but still carries the skin term. Null = nothing to show.
+ */
+export function bandFor(ctx: UVContext, now: number, skin?: { lo: number; hi: number }): ((hours: number) => DoseBand) | null {
+  const r = readAt(ctx, now);
+  if (!r.errorClass && !skin) return null;
+  const cls = r.errorClass;
+  // The measured band already includes pixel-to-pixel cloud variation for a precise user (the
+  // backtest scored precise predictions); only location uncertainty beyond a pixel adds to it.
+  const coarse = (ctx.accuracyKm ?? 0) > SAT_PIXEL_KM;
+  const uvBand = (hours: number) => {
+    const b = doseBand(cls!, hours);
+    return coarse ? withSpatial(b, r.uvi, r.uviRange) : b;
+  };
+  return (hours) => withSkin(cls ? uvBand(hours) : { lo: 1, hi: 1 }, skin);
+}
+
+/**
+ * Cautious multiplier on a session's burn fraction so far (alerts use fraction × this).
+ * Band width for the session's outdoor time; 1 when there's no uncertainty to apply.
+ */
+export function cautiousFactor(ctx: UVContext, now: number, outdoorHours: number, skin?: { lo: number; hi: number }): number {
+  const b = bandFor(ctx, now, skin);
+  return b ? b(Math.max(0.5, outdoorHours)).hi : 1;
+}
+
+/** Minutes from the timeline start until fraction ≥ target, interpolated; null if never. */
+function crossingMinutes(tl: [number, number, number][], target: number): number | null {
+  if (tl.length === 0) return null;
+  if (tl[0][1] >= target) return 0;
+  for (let i = 1; i < tl.length; i++) {
+    if (tl[i][1] >= target) {
+      const [t0, f0] = tl[i - 1];
+      const [t1, f1] = tl[i];
+      const w = f1 > f0 ? (target - f0) / (f1 - f0) : 1;
+      return (t0 + (t1 - t0) * w - tl[0][0]) / 60_000;
+    }
+  }
+  return null;
 }
 
 function minutesUntilSunset(now: number, lat: number, lon: number): number {
@@ -292,7 +364,8 @@ function minutesUntilSunset(now: number, lat: number, lon: number): number {
 }
 
 function pickWorst(list: SiteProjection[]): SiteProjection {
-  return [...list].sort((a, b) => (a.minutes ?? Infinity) - (b.minutes ?? Infinity))[0];
+  const key = (s: SiteProjection) => [s.soonest ?? Infinity, s.minutes ?? Infinity];
+  return [...list].sort((a, b) => key(a)[0] - key(b)[0] || key(a)[1] - key(b)[1])[0];
 }
 
 export function timeToBurnNow(args: {
@@ -307,11 +380,21 @@ export function timeToBurnNow(args: {
   const { now, ctx, profile, settings, priorDoseSED = 0, sunscreen } = args;
   const horizonMin = Math.max(2, Math.min(12 * 60, minutesUntilSunset(now, ctx.lat, ctx.lon)));
   const envAt = envAtFor(ctx);
+  const band = bandFor(ctx, now, profile.medLogSpread);
   const run = (film: SunscreenApplication | null): SiteProjection[] =>
     sitesFor(settings).map((site) => {
       const start: SessionState = { ...newSession(now, film ? newFilm(film) : null), doseSED: priorDoseSED };
-      const p = project(start, envAt, { ...settings, posture: site }, profile, { horizonMin, stepMin: 2 });
-      return { site, minutes: p.minutesToTarget };
+      // one projection at full resolution; all three times are read off its timeline
+      const p = project(start, envAt, { ...settings, posture: site }, profile, { horizonMin, stepMin: 2, sampleMin: 2 });
+      const minutes = crossingMinutes(p.timeline, 1);
+      if (!band) return { site, minutes, soonest: minutes, latest: minutes };
+      // cautious: whole dose × hi reaches 1 ⇔ central fraction reaches 1/hi. The band depends on the
+      // horizon, which is the answer, so iterate once.
+      const h0 = (minutes ?? horizonMin) / 60;
+      let soonest = crossingMinutes(p.timeline, 1 / band(h0).hi);
+      soonest = crossingMinutes(p.timeline, 1 / band((soonest ?? horizonMin) / 60).hi);
+      const latest = crossingMinutes(p.timeline, 1 / band(h0).lo);
+      return { site, minutes, soonest, latest };
     });
   const bare = run(null);
   const withSunscreen = sunscreen ? run({ ...sunscreen, appliedAt: now }) : null;
@@ -480,28 +563,205 @@ export interface CheckIn {
   promptAt: number;
   predictedFraction: number;
   cUserBefore: number;
+  /** Day's predicted skin dose at the worst site, SED (sum over sessions). Absent on pre-Bayesian check-ins. */
+  doseSED?: number;
+  /** Log-SD of that dose from the UV model (measured band for the day's outdoor time). */
+  doseLogSigma?: number;
+  sunscreen?: boolean;
   redness?: Redness;
   cUserAfter?: number;
+  /** Posterior after this answer, SED. */
+  medAfter?: { median: number; q10: number; q90: number };
   answeredAt?: number;
 }
 
+const Z90 = 1.2816;
+const logSigmaOf = (b: DoseBand) => Math.log(b.hi / b.lo) / (2 * Z90);
+
 /** Build (or refresh) the check-in for the day of a finished session. */
 export function checkInForDay(sessions: Session[], day: string, cUser: number): CheckIn | null {
-  const daySessions = sessions.filter((s) => localDayKey(s.startedAt) === day && s.status === 'completed');
+  // demo sessions are scenarios, not real skin (Session.demo): never calibrate on them
+  const daySessions = sessions.filter((s) => localDayKey(s.startedAt) === day && s.status === 'completed' && !s.demo);
   if (daySessions.length === 0) return null;
   const lastEnd = Math.max(...daySessions.map((s) => s.endedAt ?? s.lastT));
+  // redness reflects the whole day's dose, so add the sessions up (each at its worst site)
+  const doseSED = daySessions.reduce((a, s) => a + (s.sites[s.worstSite]?.doseSED ?? 0), 0);
+  const hours = daySessions.reduce((a, s) => a + s.outdoorSeconds, 0) / 3600;
+  const cls = daySessions.some((s) => s.usedFallback) ? 'physics' : 'nwp'; // sessions don't record satellite use: take the wider of the two
   return {
     day,
     sessionIds: daySessions.map((s) => s.id),
     promptAt: calibrationPromptTime(new Date(lastEnd)).getTime(),
     predictedFraction: Math.max(...daySessions.map((s) => s.peakFraction)),
     cUserBefore: cUser,
+    doseSED,
+    doseLogSigma: logSigmaOf(doseBand(cls, Math.max(0.5, hours))),
+    sunscreen: daySessions.some((s) => s.lastSunscreenAt != null),
   };
 }
 
-export function answerCheckIn(c: CheckIn, redness: Redness, now: number): CheckIn {
-  const cUserAfter = updateCUser(c.cUserBefore, { predictedFraction: c.predictedFraction, redness });
-  return { ...c, redness, cUserAfter, answeredAt: now };
+/** A check-in as evidence. Pre-Bayesian check-ins are reconstructed from the fraction they stored. */
+export function reportOf(c: CheckIn, skinType: SkinType): DoseReport | null {
+  if (!c.redness) return null;
+  return {
+    doseSED: c.doseSED ?? c.predictedFraction * MED_SED[skinType] * c.cUserBefore,
+    doseLogSigma: c.doseLogSigma ?? logSigmaOf(doseBand('nwp', 2)),
+    sunscreen: c.sunscreen ?? false,
+    redness: c.redness,
+  };
+}
+
+/** Posterior from every answered check-in since the last reset. */
+export function calibrate(skinType: SkinType, checkIns: readonly CheckIn[], resetAt = 0): MedPosterior {
+  const reports = checkIns
+    .filter((c) => c.answeredAt != null && c.answeredAt > resetAt)
+    .sort((a, b) => a.answeredAt! - b.answeredAt!)
+    .map((c) => reportOf(c, skinType))
+    .filter((r): r is DoseReport => r !== null);
+  return reports.length ? medPosterior(skinType, reports) : priorPosterior(skinType);
+}
+
+/** Posterior after adding one more answer (for the check-in record). */
+export function calibrateWith(skinType: SkinType, checkIns: readonly CheckIn[], resetAt: number, extra: DoseReport): MedPosterior {
+  return medPosterior(skinType, [
+    ...checkIns
+      .filter((c) => c.answeredAt != null && c.answeredAt > resetAt)
+      .map((c) => reportOf(c, skinType))
+      .filter((r): r is DoseReport => r !== null),
+    extra,
+  ]);
+}
+
+/**
+ * Record the answer and the posterior it leads to. `prior` = the other answered
+ * check-ins since the last reset; the store sets profile.cUser from medAfter.
+ */
+export function answerCheckIn(c: CheckIn, redness: Redness, now: number, skinType: SkinType, prior: readonly CheckIn[] = [], resetAt = 0): CheckIn {
+  const answered: CheckIn = { ...c, redness, answeredAt: now };
+  const post = calibrateWith(skinType, prior.filter((x) => x.day !== c.day), resetAt, reportOf(answered, skinType)!);
+  return { ...answered, cUserAfter: cUserOf(skinType, post), medAfter: { median: post.median, q10: post.q10, q90: post.q90 } };
 }
 
 export { explainRate };
+
+// ---------------------------------------------------------------- trends (History tab)
+
+const DAY_MS = 86_400_000;
+/** Near-burn day: peak estimated burn progress at or above this. */
+export const NEAR_BURN_FRACTION = 0.8;
+
+export interface PeriodStats {
+  outdoorSeconds: number;
+  /** Dose your skin actually got (with sunscreen, worst site), SED. */
+  protectedSED: number;
+  /** Days whose peak estimated burn progress reached NEAR_BURN_FRACTION. */
+  nearBurnDays: number;
+  /** Days with at least one session. */
+  activeDays: number;
+}
+
+/** Real (non-demo) completed sessions that started in [from, to). */
+const realSessions = (sessions: readonly Session[], from: number, to: number) =>
+  sessions.filter((s) => !s.demo && s.status === 'completed' && s.startedAt >= from && s.startedAt < to);
+
+function periodStats(sessions: readonly Session[], profile: SkinProfile): PeriodStats {
+  const days = summarizeDays([...sessions], profile);
+  return {
+    outdoorSeconds: days.reduce((a, d) => a + d.outdoorSeconds, 0),
+    protectedSED: days.reduce((a, d) => a + d.protectedSED, 0),
+    nearBurnDays: days.filter((d) => d.peakFraction >= NEAR_BURN_FRACTION).length,
+    activeDays: days.length,
+  };
+}
+
+/** The last 7 days vs the 7 before them (rolling, so no locale-dependent week start). Demo sessions excluded. */
+export function weekCompare(sessions: readonly Session[], profile: SkinProfile, now: number) {
+  return {
+    thisWeek: periodStats(realSessions(sessions, now - 7 * DAY_MS, now + 1), profile),
+    lastWeek: periodStats(realSessions(sessions, now - 14 * DAY_MS, now - 7 * DAY_MS), profile),
+  };
+}
+
+/** Seconds outside after the first sunscreen application, from the session's event timeline (pauses excluded). */
+export function sunscreenSeconds(s: Session): number {
+  const events = [...s.events].sort((a, b) => a.t - b.t);
+  const end = s.endedAt ?? s.lastT;
+  let active = false;
+  let covered = false;
+  let last = s.startedAt;
+  let total = 0;
+  for (const e of events) {
+    const t = Math.min(Math.max(e.t, s.startedAt), end);
+    if (active && covered) total += (t - last) / 1000;
+    last = t;
+    if (e.kind === 'start' || e.kind === 'resume') active = true;
+    else if (e.kind === 'pause' || e.kind === 'end') active = false;
+    else if (e.kind === 'sunscreen') covered = true;
+  }
+  if (active && covered) total += (end - last) / 1000;
+  return Math.min(Math.max(0, total), s.outdoorSeconds);
+}
+
+export interface SunscreenHabit {
+  days: number;
+  outdoorSeconds: number;
+  /** Outdoor time after sunscreen went on. */
+  coveredSeconds: number;
+  sessions: number;
+  sessionsWithSunscreen: number;
+  /**
+   * On sessions with sunscreen: share of the bare-skin dose it removed (0–1), or
+   * null if none. Session totals, so time before applying and wear-off count:
+   * this is what the habit achieved, not the label SPF.
+   */
+  doseCut: number | null;
+  /** Mean label SPF on those sessions. */
+  labelSpf: number | null;
+}
+
+/** Sunscreen habit over the last `days` days. Demo sessions excluded. */
+export function sunscreenHabit(sessions: readonly Session[], now: number, days = 30): SunscreenHabit {
+  const list = realSessions(sessions, now - days * DAY_MS, now + 1);
+  const withSs = list.filter((s) => s.lastSunscreenAt != null);
+  const bare = withSs.reduce((a, s) => a + skinDose(s).unprotectedSED, 0);
+  const prot = withSs.reduce((a, s) => a + skinDose(s).protectedSED, 0);
+  const spfs = withSs.map((s) => s.lastSpf).filter((x): x is number => x != null);
+  return {
+    days,
+    outdoorSeconds: list.reduce((a, s) => a + s.outdoorSeconds, 0),
+    coveredSeconds: list.reduce((a, s) => a + sunscreenSeconds(s), 0),
+    sessions: list.length,
+    sessionsWithSunscreen: withSs.length,
+    doseCut: bare > 0 ? Math.max(0, 1 - prot / bare) : null,
+    labelSpf: spfs.length ? spfs.reduce((a, b) => a + b, 0) / spfs.length : null,
+  };
+}
+
+export interface SkinLearningPoint {
+  /** 0 = before any check-in (the skin-type prior). */
+  n: number;
+  t: number | null;
+  redness: Redness | null;
+  /** Personal MED estimate and 80% range, SED. */
+  median: number;
+  q10: number;
+  q90: number;
+}
+
+/** How the MED estimate and its range evolved with each check-in since the last reset. */
+export function skinLearning(skinType: SkinType, checkIns: readonly CheckIn[], resetAt = 0): SkinLearningPoint[] {
+  const answered = checkIns.filter((c) => c.answeredAt != null && c.answeredAt > resetAt).sort((a, b) => a.answeredAt! - b.answeredAt!);
+  const p0 = priorPosterior(skinType);
+  const out: SkinLearningPoint[] = [{ n: 0, t: null, redness: null, median: p0.median, q10: p0.q10, q90: p0.q90 }];
+  answered.forEach((c, i) => {
+    const p = calibrate(skinType, answered.slice(0, i + 1), resetAt);
+    out.push({ n: i + 1, t: c.answeredAt!, redness: c.redness ?? null, median: p.median, q10: p.q10, q90: p.q90 });
+  });
+  return out;
+}
+
+/** How much narrower the 80% range is now than at the start (0–1, in log terms). */
+export function rangeNarrowing(points: readonly SkinLearningPoint[]): number {
+  const w = (p: SkinLearningPoint) => Math.log(p.q90 / p.q10);
+  return points.length < 2 ? 0 : Math.max(0, 1 - w(points[points.length - 1]) / w(points[0]));
+}

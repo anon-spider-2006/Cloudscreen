@@ -5,7 +5,18 @@ export interface Place {
   lon: number;
   name: string;
   source: 'gps' | 'manual' | 'demo';
+  /**
+   * Horizontal uncertainty, km. GPS: the fix's reported accuracy (large when the
+   * user turned off Precise Location / granted only coarse). Manual city: the
+   * user could be anywhere in town. Never sent off device.
+   */
+  accuracyKm?: number;
 }
+
+/** Assumed spread of a picked city (km). */
+export const MANUAL_ACCURACY_KM = 10;
+
+export const accuracyKmOf = (p: Place) => p.accuracyKm ?? (p.source === 'gps' ? 1 : p.source === 'manual' ? MANUAL_ACCURACY_KM : 0);
 
 /** Manual choices (LOC-003) and the demo scenario. */
 export const CITIES: Place[] = [
@@ -42,7 +53,10 @@ export async function locate(): Promise<LocateResult> {
     } catch {
       // geocoder unavailable: keep generic name
     }
-    return { ok: true, place: { lat, lon, name, source: 'gps' } };
+    // reduced/coarse permission still returns a fix, just with a large accuracy radius; the
+    // 0.01° rounding adds up to ~0.8 km, so never claim better than 1 km
+    const accuracyKm = Math.max(1, (pos.coords.accuracy ?? 1000) / 1000);
+    return { ok: true, place: { lat, lon, name, source: 'gps', accuracyKm } };
   } catch {
     return { ok: false, reason: 'unavailable' };
   }

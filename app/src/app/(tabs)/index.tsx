@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { SunMark } from '@/components/cs/sun-mark';
 import { UVChart } from '@/components/cs/charts';
 import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
+import { Wordmark } from '@/components/cs/wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
 import { currentSPF, localDayKey, readAt, summarizeDays } from '@/engine';
@@ -13,7 +14,7 @@ import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
 import { PRESETS } from '@/model';
 import { pendingCheckIn, skinProfile, useStore } from '@/state/store';
-import { fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
+import { fmtBurnRange, fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
 export default function Home() {
   const c = useTheme();
@@ -75,7 +76,7 @@ export default function Home() {
     <Screen>
       <View style={{ gap: 12 }}>
         <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: c.border, paddingBottom: 16 }}>
-          <Label>Cloudscreen</Label>
+          <Wordmark />
           <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</ThemedText>
         </Row>
         <ThemedText type="title">Making your day a little brighter</ThemedText>
@@ -113,16 +114,25 @@ export default function Home() {
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>Bare skin</ThemedText>
           <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {ttb.bareWorst.minutes === null ? 'Not expected today' : fmtMinutes(ttb.bareWorst.minutes)}
+            {fmtBurnRange(ttb.bareWorst)}
           </ThemedText>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>With SPF {profile.spf}</ThemedText>
           <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {ttb.sunscreenWorst?.minutes == null ? 'Not expected today' : fmtMinutes(ttb.sunscreenWorst.minutes)}
+            {ttb.sunscreenWorst ? fmtBurnRange(ttb.sunscreenWorst) : 'Not expected today'}
           </ThemedText>
         </Row>
-        {ttb.bareWorst.minutes !== null ? <Muted>{SITE_LABEL[ttb.bareWorst.site]} burn first.</Muted> : <Muted>Not expected to reach your estimated threshold before sunset. That’s not a guarantee of no damage.</Muted>}
+        {ttb.bareWorst.soonest !== null ? (
+          <Muted>
+            {SITE_LABEL[ttb.bareWorst.site]} burn first.
+            {ttb.bareWorst.minutes !== null && ttb.bareWorst.soonest !== ttb.bareWorst.minutes
+              ? ` Most likely ${fmtMinutes(ttb.bareWorst.minutes)}; plan on the earlier time.`
+              : ''}
+          </Muted>
+        ) : (
+          <Muted>Not expected to reach your estimated threshold before sunset. That’s not a guarantee of no damage.</Muted>
+        )}
         <LinkText onPress={() => router.push('/why')}>Why this number? ›</LinkText>
       </Card>
 

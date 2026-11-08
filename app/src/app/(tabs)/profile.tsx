@@ -4,7 +4,7 @@ import { Alert, Platform, Switch } from 'react-native';
 
 import { Button, Card, Chips, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
-import { MODEL_VERSION } from '@/engine';
+import { calibrate, MODEL_VERSION } from '@/engine';
 import { useTheme } from '@/hooks/use-theme';
 import { CMF_FIT_INFO, DNA_DAMAGE_WARNING_TYPES, MED_SED, PRESETS, type CloudLayers, type FilterType, type Preset, type SkinType } from '@/model';
 import { CITIES, locate } from '@/services/location';
@@ -40,7 +40,10 @@ export default function Profile() {
   const [locMsg, setLocMsg] = useState<string | null>(null);
   const [showCities, setShowCities] = useState(false);
   const skin = SKIN_OPTIONS[p.skinType - 1];
-  const answered = s.checkIns.filter((x) => x.answeredAt).sort((a, b) => (b.answeredAt ?? 0) - (a.answeredAt ?? 0));
+  const resetAt = p.calibrationResetAt ?? 0;
+  const answered = s.checkIns.filter((x) => x.answeredAt && x.answeredAt > resetAt).sort((a, b) => (b.answeredAt ?? 0) - (a.answeredAt ?? 0));
+  const post = calibrate(p.skinType, s.checkIns, resetAt);
+  const sed = (x: number) => (x < 10 ? x.toFixed(1) : x.toFixed(0));
 
   const useGps = async () => {
     setLocMsg('Locating…');
@@ -78,12 +81,17 @@ export default function Profile() {
       <Card tone="tint">
         <Label>Personal calibration</Label>
         <ThemedText>
-          Your threshold is about {p.cUser.toFixed(2)}× the typical value for skin type {skin.label} ({(MED_SED[p.skinType] * p.cUser).toFixed(1)} SED).
+          Your burn dose: about {sed(post.median)} SED, likely {sed(post.q10)}–{sed(post.q90)} SED.
         </ThemedText>
-        <Muted>Learned from {answered.length} morning check-in{answered.length === 1 ? '' : 's'}. Skin type is only a starting point.</Muted>
+        <Muted>
+          {answered.length === 0
+            ? `Starting from skin type ${skin.label} (typical ${MED_SED[p.skinType]} SED). People of the same type differ a lot, so the range is wide and alerts come early. Each morning check-in narrows it.`
+            : `Learned from ${answered.length} morning check-in${answered.length === 1 ? '' : 's'}, starting from skin type ${skin.label}. Until the range is narrow, the time-to-burn range and alerts lean early.`}
+        </Muted>
         {answered.slice(0, 5).map((x) => (
           <Muted key={x.day}>
-            {x.day}: {x.redness} · {x.cUserBefore.toFixed(2)} → {x.cUserAfter?.toFixed(2)}
+            {x.day}: {x.redness}
+            {x.medAfter ? ` → about ${sed(x.medAfter.median)} SED (${sed(x.medAfter.q10)}–${sed(x.medAfter.q90)})` : ` · ${x.cUserBefore.toFixed(2)} → ${x.cUserAfter?.toFixed(2)}`}
           </Muted>
         ))}
         <Button kind="secondary" title="Reset calibration" onPress={s.resetCalibration} />

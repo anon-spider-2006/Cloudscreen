@@ -19,9 +19,15 @@ export interface CloudLayers {
   high: number;
 }
 
+/** Per-layer aᵢ, bᵢ. CMF_PARAMS (Open-Meteo fit) or GROUND_PARAMS.layers (radiometer fit). */
+export interface CmfParams {
+  a: Readonly<CloudLayers>;
+  b: Readonly<CloudLayers>;
+}
+
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x));
 
-export function cloudModificationFactor(c: CloudLayers, params = CMF_PARAMS): number {
+export function cloudModificationFactor(c: CloudLayers, params: CmfParams = CMF_PARAMS): number {
   const { a, b } = params;
   const reduction =
     a.low * Math.pow(clamp01(c.low), b.low) +

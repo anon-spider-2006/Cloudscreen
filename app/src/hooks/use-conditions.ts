@@ -10,6 +10,7 @@ export function useConditions() {
   const minute = Math.floor(now / 60_000);
   const place = useStore((s) => s.place);
   const forecast = useStore((s) => s.forecast);
+  const satellite = useStore((s) => s.satellite);
   const profile = useStore((s) => s.profile);
   const shade = useStore((s) => s.shade);
   const custom = useStore((s) => s.custom);
@@ -18,7 +19,7 @@ export function useConditions() {
 
   return useMemo(() => {
     const at = minute * 60_000;
-    const ctx = uvContext({ place, forecast, profile });
+    const ctx = uvContext({ place, forecast, profile, satellite });
     if (!ctx) return null;
     const reading = readAt(ctx, at);
     const settings = active ? active.settings : settingsFor({ profile, shade, custom });
@@ -28,5 +29,5 @@ export function useConditions() {
     const prior = todayProtectedSED(sessions, at) + activeDose;
     const ttb = timeToBurnNow({ now: at, ctx, profile: sp, settings, priorDoseSED: prior, sunscreen: defaultSunscreen(profile, at) });
     return { ctx, reading, settings, ttb, priorDoseSED: prior, at };
-  }, [minute, place, forecast, profile, shade, custom, sessions, active]);
+  }, [minute, place, forecast, satellite, profile, shade, custom, sessions, active]);
 }

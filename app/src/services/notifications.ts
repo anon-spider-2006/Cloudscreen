@@ -57,9 +57,10 @@ export async function cancel(identifier: string) {
 }
 
 const BURN_TEXT: Record<string, { title: string; body: (min: number | null) => string }> = {
-  '0.5': { title: 'Halfway to your estimated burn threshold', body: () => 'Estimated. Consider shade or checking your sunscreen.' },
-  '0.8': { title: 'About 80% of your estimated burn threshold', body: () => 'Estimated. Consider shade or reapplying sunscreen soon.' },
-  '1': { title: 'Estimated burn threshold reached', body: () => 'This is an estimate, not a diagnosis. Consider getting out of the sun.' },
+  // Alerts fire on the cautious estimate (high end of the measured UV error), hence "may".
+  '0.5': { title: 'You may be halfway to your burn threshold', body: () => 'Cautious estimate. Consider shade or checking your sunscreen.' },
+  '0.8': { title: 'You may be at 80% of your burn threshold', body: () => 'Cautious estimate. Consider shade or reapplying sunscreen soon.' },
+  '1': { title: 'You may have reached your burn threshold', body: () => 'This is a cautious estimate, not a diagnosis. Consider getting out of the sun.' },
 };
 
 /**

@@ -49,6 +49,7 @@ export default function Forecast() {
   const forecast = useStore((s) => s.forecast);
   const profile = useStore((s) => s.profile);
   const shade = useStore((s) => s.shade);
+  const satellite = useStore((s) => s.satellite);
   const [dayIdx, setDayIdx] = useState(1);
   const [duration, setDuration] = useState(45);
   const [preset, setPreset] = useState<Preset>(profile.preset);
@@ -57,8 +58,8 @@ export default function Forecast() {
   const hourKey = Math.floor(now / 3_600_000);
 
   const ctx = useMemo(
-    () => uvContext({ place, forecast, profile }),
-    [place, forecast, profile],
+    () => uvContext({ place, forecast, profile, satellite }),
+    [place, forecast, profile, satellite],
   );
 
   const days = useMemo(() => {

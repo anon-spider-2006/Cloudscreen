@@ -1,4 +1,27 @@
-# Cloud modification factor fit
+# Model fits
+
+## Ground-truth backtest (ARPANSA radiometers)
+
+```bash
+node model-fit/ground.ts         # ARPANSA 1-min UV + Open-Meteo forecast/satellite/CAMS → data/ground/hourly_ground.csv
+python3 model-fit/ground_fit.py  # → app/src/model/groundParams.ts, ground_report.md
+```
+
+`ground.ts` runs the app's own `readUV` on what the app would have fetched for each station's privacy cell, so the
+report scores the shipped code. ARPANSA timestamps are local standard time; each station's offset is checked
+against solar noon and the run fails if it's off. Fitted rows are leave-one-station-out. Results:
+[ground_report.md](ground_report.md). The limitation to state: every station is Australian.
+
+## Calibration simulation (Bayesian MED vs the old step rule)
+
+```bash
+node model-fit/calibration_sim.ts   # → calibration_report.md (~70 s, seeded)
+```
+
+Virtual users of every skin type, two worlds (the app's assumptions hold / they're wrong in the unsafe direction), plus a
+report-noise sensitivity test. Simulated people, not data: it checks the learner, not the priors.
+
+## Cloud modification factor fit (Open-Meteo target)
 
 ```bash
 node model-fit/fetch.ts      # Open-Meteo history → data/hourly.csv (raw responses cached in data/raw/)

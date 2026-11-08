@@ -10,7 +10,7 @@ import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
 import { ACTIVITIES, POSTURES, PRESETS, SHADES, SURFACES, burnFraction, type Activity, type Posture, type Preset, type Shade, type Surface } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
-import { fmtDuration, fmtMinutes, fmtPct, fmtSED, SITE_LABEL } from '@/utils/format';
+import { fmtBurnRange, fmtDuration, fmtMinutes, fmtPct, fmtSED, SITE_LABEL } from '@/utils/format';
 
 const PRESET_OPTIONS = (Object.keys(PRESETS) as Preset[]).map((k) => ({ value: k, label: PRESETS[k].label }));
 const SHADE_OPTIONS = (Object.keys(SHADES) as Shade[]).map((k) => ({ value: k, label: SHADES[k].label }));
@@ -88,9 +88,9 @@ export default function Track() {
             ))}
             {worst && worst.fraction < 1 && ttbWorst ? (
               <ThemedText type="smallBold">
-                {ttbWorst.minutes === null
+                {ttbWorst.soonest === null
                   ? 'Not expected to reach your estimated threshold before sunset.'
-                  : `${SITE_LABEL[ttbWorst.site]} burn first · ${fmtMinutes(ttbWorst.minutes)} at forecast UV`}
+                  : `${SITE_LABEL[ttbWorst.site]} burn first · ${fmtBurnRange(ttbWorst)} more`}
               </ThemedText>
             ) : worst && worst.fraction >= 1 ? (
               <ThemedText type="smallBold" style={{ color: c.danger }}>
@@ -127,10 +127,10 @@ export default function Track() {
         <Card tone="sun">
           <Label>If you go out now (est.)</Label>
           <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-            {cond.ttb.bareWorst.minutes === null ? 'Not expected to reach your threshold today' : `${SITE_LABEL[cond.ttb.bareWorst.site]}: ${fmtMinutes(cond.ttb.bareWorst.minutes)} bare skin`}
+            {cond.ttb.bareWorst.soonest === null ? 'Not expected to reach your threshold today' : `${SITE_LABEL[cond.ttb.bareWorst.site]}: ${fmtBurnRange(cond.ttb.bareWorst)} bare skin`}
           </ThemedText>
           <Muted>
-            With SPF {s.profile.spf}: {cond.ttb.sunscreenWorst?.minutes == null ? 'not expected today' : fmtMinutes(cond.ttb.sunscreenWorst.minutes)}
+            With SPF {s.profile.spf}: {cond.ttb.sunscreenWorst ? fmtBurnRange(cond.ttb.sunscreenWorst).replace(/^Not/, 'not') : 'not expected today'}
           </Muted>
         </Card>
       )}

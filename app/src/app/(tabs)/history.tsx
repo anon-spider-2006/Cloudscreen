@@ -4,6 +4,7 @@ import { Pressable } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 
 import { Bar, Button, Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
+import { TrendsCard } from '@/components/cs/trends';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
 import { localDayKey, skinDose, summarizeDays } from '@/engine';
@@ -36,6 +37,7 @@ export default function History() {
   return (
     <Screen>
       <ThemedText type="subtitle">History</ThemedText>
+      <TrendsCard />
       <Card>
         <Label>Last 14 days · skin dose</Label>
         <Svg width="100%" height={110} viewBox="0 0 320 110" accessibilityLabel="Daily unprotected skin dose for the last 14 days">
