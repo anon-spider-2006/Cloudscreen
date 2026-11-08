@@ -15,7 +15,6 @@ import {
   localDayKey,
   newlyCrossed,
   overlaps,
-  replaySession,
   setStatus,
   settingsForPreset,
   startSession,
@@ -113,7 +112,7 @@ interface Actions {
   end: () => void;
   tick: () => void;
   logSunscreen: (app: Omit<SunscreenApplication, 'appliedAt'> & { appliedAt?: number }) => void;
-  addPastSession: (a: { start: number; end: number; preset: Preset; shade: Shade; sunscreenAt?: number | null }) => { ok: true } | { ok: false; reason: string };
+  addPastSession: (a: { start: number; end: number; preset: Preset; shade: Shade; sunscreenAt?: number | null; settings?: ExposureSettings }) => { ok: true } | { ok: false; reason: string };
   deleteSession: (id: string) => void;
   answerCheckIn: (day: string, r: Redness) => void;
   resetCalibration: () => void;
@@ -345,7 +344,7 @@ export const useStore = create<Store>()(
         }
       },
 
-      addPastSession: ({ start, end, preset, shade, sunscreenAt }) => {
+      addPastSession: ({ start, end, preset, shade, sunscreenAt, settings }) => {
         const s = get();
         const ctx = uvContext(s);
         const now = nowFor(s.profile);
@@ -355,15 +354,18 @@ export const useStore = create<Store>()(
         if (now - start > 2 * 24 * 3_600_000) return { ok: false, reason: 'Only today and yesterday can be added.' };
         const clash = [...s.sessions, ...(s.active ? [s.active] : [])].some((x) => overlaps(x, start, end, now));
         if (clash) return { ok: false, reason: 'Overlaps a session you already have.' };
-        const session = replaySession({
-          start,
-          end,
-          ctx,
-          profile: skinProfile(s.profile),
-          preset,
-          shade,
-          sunscreen: sunscreenAt != null ? defaultSunscreen(s.profile, sunscreenAt) : null,
-        });
+        // Wire the form to existing integration functions; no dose rules change.
+        let session = startSession(start, preset, shade, skinProfile(s.profile), 'retroactive');
+        if (settings) session = changeSettings(session, start, { ...settings, shade }, preset);
+        if (sunscreenAt != null && sunscreenAt <= start) {
+          session = applySunscreen(session, { ...defaultSunscreen(s.profile, sunscreenAt), appliedAt: start });
+        }
+        if (sunscreenAt != null && sunscreenAt > start && sunscreenAt < end) {
+          session = stepSession(session, sunscreenAt, envAtFor(ctx), skinProfile(s.profile));
+          session = applySunscreen(session, defaultSunscreen(s.profile, sunscreenAt));
+        }
+        session = stepSession(session, end, envAtFor(ctx), skinProfile(s.profile));
+        session = setStatus(session, end, 'completed');
         session.demo = s.profile.uvMode === 'demo';
         set({ sessions: [session, ...s.sessions].sort((a, b) => b.startedAt - a.startedAt) });
         if (!session.demo) upsertCheckIn(localDayKey(start));

@@ -42,7 +42,8 @@ export function fractionColor(f: number, c: Palette): string {
 }
 
 export const Fonts = {
-  sans: 'DMSans', display: 'BricolageGrotesque', rounded: 'DMSans',
+  sans: Platform.select({ web: 'Geneva, Arial, sans-serif', default: 'Geneva' }),
+  display: 'BricolageGrotesque', rounded: Platform.select({ web: 'Geneva, Arial, sans-serif', default: 'Geneva' }),
   mono: Platform.select({ ios: 'Menlo', default: 'monospace' }),
 };
 

@@ -8,7 +8,7 @@ import {
 } from 'expo-router/ui';
 import { Pressable, View, StyleSheet, type PressableProps } from 'react-native';
 
-import { Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
+import { MaxContentWidth, Spacing } from '@/constants/theme';
 
 import { ThemedText } from './themed-text';
 import { ThemedView } from './themed-view';
@@ -58,10 +58,6 @@ export function CustomTabList(props: TabListProps) {
   return (
     <View {...props} style={styles.tabListContainer}>
       <ThemedView type="backgroundElement" style={styles.innerContainer}>
-        <ThemedText type="smallBold" style={styles.brandText}>
-          CS
-        </ThemedText>
-
         {props.children}
 
       </ThemedView>
@@ -90,12 +86,6 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     gap: 2,
     maxWidth: MaxContentWidth,
-  },
-  brandText: {
-    marginRight: 6,
-    fontFamily: Fonts.display,
-    fontSize: 24,
-    fontWeight: 800,
   },
   pressed: {
     opacity: 0.7,
