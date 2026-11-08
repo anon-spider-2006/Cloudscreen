@@ -82,7 +82,7 @@ export default function History() {
                     {s.trackingMode === 'retroactive' ? ' · added later' : ''}
                     {s.demo ? ' · demo' : ''}
                   </ThemedText>
-                  <ThemedText type="small" style={{ color: c.tint }}>
+                  <ThemedText type="small" style={{ color: c.text }}>
                     {fmtSED(skinDose(s).protectedSED)} ›
                   </ThemedText>
                 </Row>
