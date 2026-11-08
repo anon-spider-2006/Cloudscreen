@@ -75,10 +75,10 @@ export default function Home() {
     <Screen>
       <View style={{ gap: 12 }}>
         <Row style={{ justifyContent: 'space-between', flexWrap: 'wrap', borderBottomWidth: 1, borderColor: c.border, paddingBottom: 16 }}>
-          <Label>Cloudscreen / Your sun journal</Label>
+          <Label>Cloudscreen</Label>
           <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</ThemedText>
         </Row>
-        <ThemedText type="title">A little sun sense.</ThemedText>
+        <ThemedText type="title">Making your day a little brighter</ThemedText>
         <Muted>
           {place.name} · {mode === 'forecast' ? 'forecast' : mode === 'demo' ? 'demo (offline physics)' : 'physics fallback'}
           {forecast && mode === 'forecast' ? ` · updated ${fmtTime(forecast.fetchedAt)}` : ''}
@@ -94,7 +94,7 @@ export default function Home() {
       {stale ? <Banner tone="tint" text="Forecast data is more than 3 hours old." /> : null}
 
       <Card tone="tint">
-        <Label>01 / Under this sky</Label>
+        <Label>Under this sky</Label>
         <Muted>Current UV index</Muted>
         <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
           <Row style={{ flexWrap: 'wrap', flex: 1 }}><Big>{reading.uvi.toFixed(1)}</Big><SunMark size={96} /></Row>
@@ -107,7 +107,7 @@ export default function Home() {
 
       <Card tone="sun">
         <Row style={{ justifyContent: 'space-between' }}>
-          <Label>02 / Time to burn (est.)</Label>
+          <Label>Time to burn (est.)</Label>
           <Muted>{preset.label}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
@@ -127,7 +127,7 @@ export default function Home() {
       </Card>
 
       <Card>
-        <Label>03 / Your day outside</Label>
+        <Label>Your day outside</Label>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>Estimated burn progress</ThemedText>
           <ThemedText type="smallBold">{fmtPct(todayFraction)}</ThemedText>
@@ -145,11 +145,11 @@ export default function Home() {
           <Muted>Time outside</Muted>
           <Muted>{fmtShortDuration(today?.outdoorSeconds ?? 0)}</Muted>
         </Row>
-        <Muted>1 SED (standard erythema dose) = 100 J/m² of sunburn-weighted UV. Fair skin typically reddens around 2.5–3 SED.</Muted>
+        <Muted>1 SED (standard erythema dose) = 100 J/m² of sunburn-weighted UV.</Muted>
       </Card>
 
       <Card>
-        <Label>04 / A layer of care</Label>
+        <Label>A layer of care</Label>
         <ThemedText>
           {lastSunscreen ? `SPF ${lastSunscreen.spfLabel} · applied ${fmtTime(lastSunscreen.appliedAt)} (${fmtMinutes((now - lastSunscreen.appliedAt) / 60_000)} ago)` : 'None logged today'}
         </ThemedText>
