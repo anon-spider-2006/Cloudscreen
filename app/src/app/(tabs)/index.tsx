@@ -4,7 +4,7 @@ import { View } from 'react-native';
 
 import { SunMark } from '@/components/cs/sun-mark';
 import { UVChart } from '@/components/cs/charts';
-import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
+import { Banner, Bar, Big, Button, Card, Disclaimer, keep, Label, LinkText, Muted, Row, Screen, wrapRight } from '@/components/cs/ui';
 import { Wordmark } from '@/components/cs/wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
@@ -107,17 +107,17 @@ export default function Home() {
       <Card tone="sun">
         <Row style={{ justifyContent: 'space-between' }}>
           <Label>Time to burn (est.)</Label>
-          <Muted>{activityLabel(profile.preset, cond.settings)}</Muted>
+          <Muted style={wrapRight}>{activityLabel(profile.preset, cond.settings)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
-          <ThemedText>Bare skin</ThemedText>
-          <ThemedText type="smallBold" style={{ fontSize: 20 }}>
+          <ThemedText style={keep}>Bare skin</ThemedText>
+          <ThemedText type="smallBold" style={[wrapRight, { fontSize: 20 }]}>
             {fmtBurnRange(ttb.bareWorst)}
           </ThemedText>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
-          <ThemedText>With SPF {profile.spf}</ThemedText>
-          <ThemedText type="smallBold" style={{ fontSize: 20 }}>
+          <ThemedText style={keep}>With SPF {profile.spf}</ThemedText>
+          <ThemedText type="smallBold" style={[wrapRight, { fontSize: 20 }]}>
             {ttb.sunscreenWorst ? fmtBurnRange(ttb.sunscreenWorst) : 'Not expected today'}
           </ThemedText>
         </Row>
@@ -138,16 +138,16 @@ export default function Home() {
         <Label>Your day outside</Label>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>Estimated burn progress</ThemedText>
-          <ThemedText type="smallBold">{fmtPct(todayFraction)}</ThemedText>
+          <ThemedText type="smallBold" style={keep}>{fmtPct(todayFraction)}</ThemedText>
         </Row>
         <Bar fraction={todayFraction} color={fractionColor(todayFraction, c)} />
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Skin dose (unprotected)</Muted>
-          <Muted>{fmtSED(today?.unprotectedSED ?? 0)}</Muted>
+          <Muted style={keep}>{fmtSED(today?.unprotectedSED ?? 0)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Ambient dose (flat surface)</Muted>
-          <Muted>{fmtSED(today?.ambientSED ?? 0)}</Muted>
+          <Muted style={keep}>{fmtSED(today?.ambientSED ?? 0)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <Muted>Time outside</Muted>

@@ -11,7 +11,8 @@ export type ThemedTextProps = TextProps & {
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
   const theme = useTheme();
 
-  return <Text style={[{ fontFamily: Fonts.sans, color: theme[themeColor ?? 'text'] }, styles[type], style]} {...rest} />;
+  // flexShrink: in a row, native Text otherwise refuses to shrink and runs past the edge (web wraps on its own)
+  return <Text style={[{ fontFamily: Fonts.sans, color: theme[themeColor ?? 'text'], flexShrink: 1 }, styles[type], style]} {...rest} />;
 }
 
 const styles = StyleSheet.create({

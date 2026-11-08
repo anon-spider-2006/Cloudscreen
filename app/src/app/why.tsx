@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
+import { Card, Disclaimer, Label, Muted, Row, Screen, wrapRight } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { activityLabel, bandFor, explainRate, worstOf } from '@/engine';
 import { useConditions } from '@/hooks/use-conditions';
@@ -15,7 +15,9 @@ function Line({ label, value, note }: { label: string; value: string; note?: str
         {label}
         {note ? <Muted>{`\n${note}`}</Muted> : null}
       </ThemedText>
-      <ThemedText type="smallBold">{value}</ThemedText>
+      <ThemedText type="smallBold" style={[wrapRight, { maxWidth: '45%' }]}>
+        {value}
+      </ThemedText>
     </Row>
   );
 }

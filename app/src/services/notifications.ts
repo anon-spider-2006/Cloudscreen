@@ -7,11 +7,18 @@ import { AndroidImportance } from 'expo-notifications';
 import { Platform } from 'react-native';
 
 const supported = Platform.OS !== 'web';
-let initialized = false;
+const CHANNEL = 'default';
+/** Resolves once setup is done (on Android: the channel exists). */
+let ready: Promise<void> | null = null;
 
-export function initNotifications() {
-  if (!supported || initialized) return;
-  initialized = true;
+/**
+ * Show notifications while the app is open, and create the Android channel.
+ * Android 13+ won't show the permission prompt until a channel exists, so
+ * ensurePermission waits for this before asking.
+ */
+export function initNotifications(): Promise<void> {
+  if (!supported) return Promise.resolve();
+  if (ready) return ready;
   Notifications.setNotificationHandler({
     handleNotification: async () => ({
       shouldShowBanner: true,
@@ -20,18 +27,19 @@ export function initNotifications() {
       shouldSetBadge: false,
     }),
   });
-  if (Platform.OS === 'android') {
-    Notifications.setNotificationChannelAsync('default', {
-      name: 'Cloudscreen',
-      importance: AndroidImportance.DEFAULT,
-    }).catch(() => {});
-  }
+  ready =
+    Platform.OS === 'android'
+      ? Notifications.setNotificationChannelAsync(CHANNEL, { name: 'Cloudscreen', importance: AndroidImportance.DEFAULT })
+          .then(() => undefined)
+          .catch(() => undefined)
+      : Promise.resolve();
+  return ready;
 }
 
 /** Ask only when needed (NOTIF-001). */
 export async function ensurePermission(): Promise<boolean> {
   if (!supported) return false;
-  initNotifications();
+  await initNotifications(); // the channel must exist before Android 13+ will show the prompt
   const cur = await Notifications.getPermissionsAsync();
   if (cur.granted) return true;
   if (!cur.canAskAgain) return false;
@@ -41,13 +49,15 @@ export async function ensurePermission(): Promise<boolean> {
 
 async function scheduleAt(identifier: string, date: Date, title: string, body: string) {
   if (!supported) return;
+  await initNotifications();
   await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => {});
   const seconds = Math.round((date.getTime() - Date.now()) / 1000);
   if (seconds < 1) return;
   await Notifications.scheduleNotificationAsync({
     identifier,
     content: { title, body },
-    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds },
+    // name our channel; without it Android files these under a generic "Miscellaneous" channel
+    trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, channelId: CHANNEL },
   }).catch(() => {});
 }
 

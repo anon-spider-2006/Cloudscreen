@@ -5,7 +5,7 @@
  * Node 25's built-in localStorage, which throws without --localstorage-file.)
  * Callers already fall back to in-app banners when canNotify() is false.
  */
-export function initNotifications() {}
+export async function initNotifications(): Promise<void> {}
 export async function ensurePermission(): Promise<boolean> {
   return false;
 }

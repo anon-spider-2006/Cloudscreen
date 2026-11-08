@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { Pressable } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 
-import { Bar, Button, Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
+import { Bar, Button, Card, Disclaimer, keep, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { TrendsCard } from '@/components/cs/trends';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
@@ -70,7 +70,7 @@ export default function History() {
         <Card key={d.day}>
           <Row style={{ justifyContent: 'space-between' }}>
             <ThemedText type="smallBold">{fmtDay(Date.parse(`${d.day}T12:00:00`))}</ThemedText>
-            <Muted>
+            <Muted style={keep}>
               {fmtShortDuration(d.outdoorSeconds)} · {fmtSED(d.unprotectedSED)}
             </Muted>
           </Row>
@@ -86,7 +86,7 @@ export default function History() {
                     {s.trackingMode === 'retroactive' ? ' · added later' : ''}
                     {s.demo ? ' · demo' : ''}
                   </ThemedText>
-                  <ThemedText type="small" style={{ color: c.text }}>
+                  <ThemedText type="small" style={[keep, { color: c.text }]}>
                     {fmtSED(skinDose(s).protectedSED)} ›
                   </ThemedText>
                 </Row>
