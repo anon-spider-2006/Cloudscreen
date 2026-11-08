@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useMemo } from 'react';
 
 import { ActivityPicker } from '@/components/cs/activity-picker';
-import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
+import { Banner, Bar, Big, Button, Card, Disclaimer, keep, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
 import { currentSPF, explainRate, skinDose } from '@/engine';
@@ -75,7 +75,7 @@ export default function Track() {
               <Row key={x.site} style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6 }}>
                 <Row style={{ justifyContent: 'space-between' }}>
                   <ThemedText type={x === worst ? 'smallBold' : 'small'}>{SITE_LABEL[x.site]}</ThemedText>
-                  <ThemedText type={x === worst ? 'smallBold' : 'small'}>{fmtPct(x.fraction)}</ThemedText>
+                  <ThemedText type={x === worst ? 'smallBold' : 'small'} style={keep}>{fmtPct(x.fraction)}</ThemedText>
                 </Row>
                 <Bar fraction={x.fraction} color={fractionColor(x.fraction, c)} />
               </Row>
@@ -98,15 +98,15 @@ export default function Track() {
             <Label>Dose this session</Label>
             <Row style={{ justifyContent: 'space-between' }}>
               <ThemedText>On skin (with sunscreen)</ThemedText>
-              <ThemedText type="smallBold">{fmtSED(skinDose(a).protectedSED)}</ThemedText>
+              <ThemedText type="smallBold" style={keep}>{fmtSED(skinDose(a).protectedSED)}</ThemedText>
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>
               <Muted>Unprotected skin dose</Muted>
-              <Muted>{fmtSED(skinDose(a).unprotectedSED)}</Muted>
+              <Muted style={keep}>{fmtSED(skinDose(a).unprotectedSED)}</Muted>
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>
               <Muted>Ambient (flat surface)</Muted>
-              <Muted>{fmtSED(a.ambientSED)}</Muted>
+              <Muted style={keep}>{fmtSED(a.ambientSED)}</Muted>
             </Row>
             {rate ? (
               <Muted>

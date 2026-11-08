@@ -46,7 +46,7 @@ export function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps
       <ThemedView
         type={isFocused ? 'backgroundSelected' : 'backgroundElement'}
         style={styles.tabButtonView}>
-        <ThemedText style={{ fontSize: 12 }} type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
+        <ThemedText style={{ fontSize: 12, textAlign: 'center' }} numberOfLines={1} type="small" themeColor={isFocused ? 'text' : 'textSecondary'}>
           {children}
         </ThemedText>
       </ThemedView>
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   },
   tabButtonView: {
     paddingVertical: Spacing.one,
-    paddingHorizontal: 4,
+    paddingHorizontal: 2, // "Forecast" needs the room on 320 px screens
     alignItems: 'center',
     minHeight: 44,
     justifyContent: 'center',

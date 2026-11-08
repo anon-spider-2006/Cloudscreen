@@ -64,6 +64,11 @@ export function Big({ children, color }: { children: ReactNode; color?: string }
   return <ThemedText style={[styles.big, color ? { color } : null]}>{children}</ThemedText>;
 }
 
+/** In a label/value row: a short value that must stay on one line (numbers, doses). */
+export const keep = { flexShrink: 0 } as const;
+/** In a label/value row: a long value that may wrap, aligned to the right edge. */
+export const wrapRight = { flexShrink: 1, textAlign: 'right' } as const;
+
 export function Row({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
   return <View style={[styles.row, style]}>{children}</View>;
 }
