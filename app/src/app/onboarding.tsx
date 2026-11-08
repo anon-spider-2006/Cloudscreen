@@ -48,7 +48,8 @@ export default function Onboarding() {
 
       {step === 0 ? (
         <Card>
-          <Label>1 · How does your skin react to sun?</Label>
+          <Label>Step 1 of 4: your skin</Label>
+          <ThemedText type="smallBold">How does your skin react to sun?</ThemedText>
           {SKIN_QUESTIONS.map((q) => (
             <Pressable
               key={q.value}
@@ -72,7 +73,8 @@ export default function Onboarding() {
 
       {step === 1 ? (
         <Card>
-          <Label>2 · Your usual sunscreen</Label>
+          <Label>Step 2 of 4: sunscreen</Label>
+          <ThemedText type="smallBold">What do you usually wear?</ThemedText>
           <Chips options={[15, 30, 50, 70, 100].map((v) => ({ value: v, label: `SPF ${v}` }))} value={spf} onChange={setSpf} />
           <Muted>You can change amount, filter type and water resistance later in Profile.</Muted>
           <Button title="Next" onPress={() => setStep(2)} />
@@ -81,7 +83,8 @@ export default function Onboarding() {
 
       {step === 2 ? (
         <Card>
-          <Label>3 · Where are you?</Label>
+          <Label>Step 3 of 4: location</Label>
+          <ThemedText type="smallBold">Where are you?</ThemedText>
           <Muted>Used only to fetch the UV forecast. Rounded to about 1 km. Stays on your device otherwise.</Muted>
           <Button
             title={place ? `Location: ${place.name}` : 'Use my location'}
@@ -103,7 +106,7 @@ export default function Onboarding() {
 
       {step === 3 ? (
         <Card>
-          <Label>4 · Alerts</Label>
+          <Label>Step 4 of 4: alerts</Label>
           <Muted>Get notified at 50%, 80% and 100% of your estimated burn threshold, when it’s time to reapply, and for the morning check-in.</Muted>
           <Button title="Turn on alerts" onPress={() => finish(true)} />
           <Button kind="secondary" title="Not now" onPress={() => finish(false)} />

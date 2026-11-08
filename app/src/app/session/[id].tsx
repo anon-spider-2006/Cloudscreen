@@ -45,20 +45,23 @@ export default function SessionDetail() {
       <Card>
         <Label>{fmtDay(session.startedAt)}</Label>
         <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-          {fmtTime(session.startedAt)}–{fmtTime(session.endedAt ?? session.lastT)} · {activityLabel(session.preset, session.settings)}
+          {activityLabel(session.preset, session.settings)}
+        </ThemedText>
+        <ThemedText type="small">
+          {fmtTime(session.startedAt)}–{fmtTime(session.endedAt ?? session.lastT)}, {fmtShortDuration(session.outdoorSeconds)} outside
         </ThemedText>
         <Muted>
-          {fmtShortDuration(session.outdoorSeconds)} outside · avg UV {avgUVI.toFixed(1)} · max UV {session.maxUVI.toFixed(1)}
+          Average UV {avgUVI.toFixed(1)}, peak {session.maxUVI.toFixed(1)}
         </Muted>
-        {session.trackingMode === 'retroactive' ? <Muted>Added later · from forecast data (estimated)</Muted> : null}
-        {session.usedFallback ? <Muted>Some intervals used the physics fallback (no forecast).</Muted> : null}
+        {session.trackingMode === 'retroactive' ? <Muted>Added later, estimated from forecast data.</Muted> : null}
+        {session.usedFallback ? <Muted>Part of it used the offline estimate (no forecast was available).</Muted> : null}
         {session.demo ? <Muted>Recorded in demo mode; not used for calibration.</Muted> : null}
       </Card>
 
       <Card tone="sun">
         <Label>Peak estimated burn progress</Label>
         <ThemedText type="smallBold" style={{ fontSize: 24 }}>
-          {fmtPct(Math.max(fraction, session.peakFraction))} · {SITE_LABEL[worst]}
+          {fmtPct(Math.max(fraction, session.peakFraction))}, {SITE_LABEL[worst].toLowerCase()}
         </ThemedText>
         <Bar fraction={Math.max(fraction, session.peakFraction)} color={fractionColor(fraction, c)} />
         <Muted>Threshold used: skin type {['I', 'II', 'III', 'IV', 'V', 'VI'][profile.skinType - 1]} × {session.cUserAtSession.toFixed(2)} personal calibration</Muted>
@@ -86,7 +89,7 @@ export default function SessionDetail() {
           <Row key={`${e.t}-${i}`} style={{ justifyContent: 'space-between' }}>
             <Muted style={keep}>{fmtTime(e.t)}</Muted>
             <ThemedText type="small" style={wrapRight}>
-              {e.kind === 'settings' ? `Changed to ${e.detail}` : e.kind === 'sunscreen' ? `Sunscreen ${e.detail}` : `${e.kind[0].toUpperCase()}${e.kind.slice(1)}${e.detail ? ` · ${e.detail}` : ''}`}
+              {e.kind === 'settings' ? `Changed to ${e.detail}` : e.kind === 'sunscreen' ? `Sunscreen ${e.detail}` : `${e.kind[0].toUpperCase()}${e.kind.slice(1)}${e.detail ? `: ${e.detail}` : ''}`}
             </ThemedText>
           </Row>
         ))}
@@ -97,7 +100,10 @@ export default function SessionDetail() {
         <Card>
           <Label>Morning check-in</Label>
           <ThemedText>
-            You said: {checkIn.redness === 'none' ? 'no redness' : checkIn.redness === 'pink' ? 'a little pink' : 'burned'} · calibration {checkIn.cUserBefore.toFixed(2)} → {checkIn.cUserAfter?.toFixed(2)}
+            You said {checkIn.redness === 'none' ? 'no redness' : checkIn.redness === 'pink' ? 'a little pink' : 'burned'}.
+            {checkIn.medAfter
+              ? ` Your burn dose estimate is now about ${checkIn.medAfter.median.toFixed(1)} SED (likely ${checkIn.medAfter.q10.toFixed(1)}–${checkIn.medAfter.q90.toFixed(1)}).`
+              : ` Calibration went from ${checkIn.cUserBefore.toFixed(2)} to ${checkIn.cUserAfter?.toFixed(2)}.`}
           </ThemedText>
         </Card>
       ) : null}

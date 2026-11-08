@@ -322,17 +322,17 @@ export function presetMatching(x: ExposureSettings, prefer?: Preset): Preset | n
   return (Object.keys(PRESETS) as Preset[]).find(same) ?? null;
 }
 
-/** "Position · Ground · Skin" in words. */
+/** "Position, ground, skin" in words. */
 export function describeSettings(x: ExposureSettings): string {
   const parts = [POSITION_LABEL[x.posture], SURFACE_LABEL[x.surface], SKIN_LABEL[x.activity]];
   if (x.shade && x.shade !== 'none') parts.push(SHADE_LABEL[x.shade]);
-  return parts.join(' · ');
+  return parts.join(', ');
 }
 
-/** What to call an outing: its preset if the settings match one, otherwise "Custom · …". */
+/** What to call an outing: its preset if the settings match one, otherwise "Custom: …". */
 export function activityLabel(preset: Preset, x: ExposureSettings): string {
   const p = presetMatching(x, preset);
-  return p ? PRESETS[p].label : `Custom · ${describeSettings({ ...x, shade: 'none' })}`;
+  return p ? PRESETS[p].label : `Custom: ${describeSettings({ ...x, shade: 'none' })}`;
 }
 
 // ---------------------------------------------------------------- time to burn now

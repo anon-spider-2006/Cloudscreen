@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { Pressable } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Svg, { Rect, Text as SvgText } from 'react-native-svg';
 
 import { Bar, Button, Card, Disclaimer, keep, Label, Muted, Row, Screen } from '@/components/cs/ui';
@@ -41,7 +41,7 @@ export default function History() {
       <ThemedText type="subtitle">History</ThemedText>
       <TrendsCard />
       <Card>
-        <Label>Last 14 days · skin dose</Label>
+        <Label>Skin dose, last 14 days</Label>
         <Svg width="100%" height={110} viewBox="0 0 320 110" accessibilityLabel="Daily unprotected skin dose for the last 14 days">
           {last14.map((d, i) => {
             const h = (d.sed / maxSed) * 80;
@@ -71,7 +71,7 @@ export default function History() {
           <Row style={{ justifyContent: 'space-between' }}>
             <ThemedText type="smallBold">{fmtDay(Date.parse(`${d.day}T12:00:00`))}</ThemedText>
             <Muted style={keep}>
-              {fmtShortDuration(d.outdoorSeconds)} · {fmtSED(d.unprotectedSED)}
+              {fmtShortDuration(d.outdoorSeconds)}, {fmtSED(d.unprotectedSED)}
             </Muted>
           </Row>
           <Bar fraction={d.peakFraction} color={fractionColor(d.peakFraction, c)} />
@@ -81,11 +81,14 @@ export default function History() {
             .map((s) => (
               <Pressable key={s.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/session/[id]', params: { id: s.id } })}>
                 <Row style={{ justifyContent: 'space-between', paddingVertical: 6 }}>
-                  <ThemedText type="small">
-                    {fmtTime(s.startedAt)}–{fmtTime(s.endedAt ?? s.lastT)} · {activityLabel(s.preset, s.settings)}
-                    {s.trackingMode === 'retroactive' ? ' · added later' : ''}
-                    {s.demo ? ' · demo' : ''}
-                  </ThemedText>
+                  <View style={{ flexShrink: 1, gap: 2 }}>
+                    <ThemedText type="small">{activityLabel(s.preset, s.settings)}</ThemedText>
+                    <Muted>
+                      {fmtTime(s.startedAt)}–{fmtTime(s.endedAt ?? s.lastT)}
+                      {s.trackingMode === 'retroactive' ? ', added later' : ''}
+                      {s.demo ? ' (demo)' : ''}
+                    </Muted>
+                  </View>
                   <ThemedText type="small" style={[keep, { color: c.text }]}>
                     {fmtSED(skinDose(s).protectedSED)} ›
                   </ThemedText>

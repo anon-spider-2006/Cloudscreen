@@ -89,7 +89,7 @@ export default function Profile() {
         {answered.slice(0, 5).map((x) => (
           <Muted key={x.day}>
             {x.day}: {x.redness}
-            {x.medAfter ? ` → about ${sed(x.medAfter.median)} SED (${sed(x.medAfter.q10)}–${sed(x.medAfter.q90)})` : ` · ${x.cUserBefore.toFixed(2)} → ${x.cUserAfter?.toFixed(2)}`}
+            {x.medAfter ? ` → about ${sed(x.medAfter.median)} SED (${sed(x.medAfter.q10)}–${sed(x.medAfter.q90)})` : `, calibration ${x.cUserBefore.toFixed(2)} → ${x.cUserAfter?.toFixed(2)}`}
           </Muted>
         ))}
         <Button kind="secondary" title="Reset calibration" onPress={s.resetCalibration} />
@@ -167,7 +167,8 @@ export default function Profile() {
 
       <Card tone="sun">
         <Label>{s.demo ? 'You’re in the demo' : 'Try the demo'}</Label>
-        <ThemedText type="smallBold">{DEMO_PERSONA.name} · an evening in the Adirondacks</ThemedText>
+        <ThemedText type="smallBold">{DEMO_PERSONA.name}</ThemedText>
+        <ThemedText type="small">An evening in the Adirondacks</ThemedText>
         <Muted>
           {s.demo
             ? 'Everything on these screens is her made-up data. Your own data is set aside and comes back when you exit.'
@@ -193,7 +194,7 @@ export default function Profile() {
         <Button kind="danger" title="Delete all data" onPress={confirmDeleteAll} />
       </Card>
       <Disclaimer />
-      <Muted style={{ textAlign: 'center', color: c.textSecondary }}>Cloudscreen · HackRPI 2026</Muted>
+      <Muted style={{ textAlign: 'center', color: c.textSecondary }}>Cloudscreen, made at HackRPI 2026</Muted>
     </Screen>
   );
 }

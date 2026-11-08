@@ -69,7 +69,7 @@ export default function Why() {
         <Line
           label={`× ${SITE_LABEL[site].toLowerCase()} on ${SURFACES[settings.surface].label.toLowerCase()}`}
           value={r.geometry.toFixed(2)}
-          note={`${activityLabel(active?.preset ?? profile.preset, settings)} · ${SHADES[settings.shade ?? 'none'].label}. Upright skin catches less than a flat surface; ground reflection adds back.`}
+          note={`${activityLabel(active?.preset ?? profile.preset, settings)}, ${SHADES[settings.shade ?? 'none'].label.toLowerCase()}. Upright skin catches less than a flat surface; ground reflection adds back.`}
         />
         <Line
           label="÷ sunscreen, now"

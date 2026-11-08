@@ -166,11 +166,11 @@ export default function Forecast() {
               >
                 <ThemedText type={i === dayIdx ? "smallBold" : "small"}>
                   {i === 0 ? "Today" : i === 1 ? "Tomorrow" : fmtDay(d.noon)}
-                  {i >= 3 ? " · outlook" : ""}
+                  {i >= 3 ? " (outlook)" : ""}
                 </ThemedText>
                 <ThemedText type="small" style={{ color: cat.color }}>
-                  peak {d.peak.toFixed(1)} {cat.label.toLowerCase()} ·{" "}
-                  {d.above3} h ≥ 3
+                  peak {d.peak.toFixed(1)}, {cat.label.toLowerCase()},{" "}
+                  {d.above3} h at 3+
                 </ThemedText>
               </Row>
             </Pressable>
@@ -223,17 +223,17 @@ export default function Forecast() {
             {selectedSlot ? (
               <Card>
                 <ThemedText type="smallBold">
-                  Start {fmtTime(selectedSlot.start)} ·{" "}
+                  Starting at {fmtTime(selectedSlot.start)}: up to{" "}
                   {fmtPct(selectedSlot.peakFraction)} of your estimated
                   threshold
                 </ThemedText>
                 <Muted>
                   {SITE_LABEL[selectedSlot.worstSite]}:{" "}
-                  {fmtSED(selectedSlot.skinSED)} on skin ·{" "}
+                  {fmtSED(selectedSlot.skinSED)} on skin,{" "}
                   {fmtSED(selectedSlot.ambientSED)} ambient
                   {selectedSlot.minutesToBurn !== null
-                    ? ` · reaches threshold after ${fmtMinutes(selectedSlot.minutesToBurn)}`
-                    : ""}
+                    ? `. Reaches your threshold after ${fmtMinutes(selectedSlot.minutesToBurn).replace("~", "")}.`
+                    : "."}
                 </Muted>
               </Card>
             ) : null}

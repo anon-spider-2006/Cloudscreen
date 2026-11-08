@@ -63,7 +63,7 @@ export default function Track() {
             <Row style={{ justifyContent: 'space-between' }}>
               <Label>Session</Label>
               <Muted>
-                UV {cond.reading.uvi.toFixed(1)} · {cat.label}
+                UV {cond.reading.uvi.toFixed(1)}, {cat.label.toLowerCase()}
               </Muted>
             </Row>
             <Big>{fmtDuration((a.status === 'active' ? now - a.lastT : 0) / 1000 + a.outdoorSeconds)}</Big>
@@ -84,7 +84,7 @@ export default function Track() {
               <ThemedText type="smallBold">
                 {ttbWorst.soonest === null
                   ? 'Not expected to reach your estimated threshold before sunset.'
-                  : `${SITE_LABEL[ttbWorst.site]} burn first · ${fmtBurnRange(ttbWorst)} more`}
+                  : `${SITE_LABEL[ttbWorst.site]} burn first, in ${fmtBurnRange(ttbWorst).replace(/^~/, '')}`}
               </ThemedText>
             ) : worst && worst.fraction >= 1 ? (
               <ThemedText type="smallBold" style={{ color: c.danger }}>
@@ -110,8 +110,10 @@ export default function Track() {
             </Row>
             {rate ? (
               <Muted>
-                Now: {rate.sedPerMin.toFixed(3)} SED/min on skin · sunscreen ≈ SPF {currentSPF(a).toFixed(1)}
-                {a.lastSunscreenAt ? ` (applied ${fmtMinutes((now - a.lastSunscreenAt) / 60_000)} ago)` : ' (none)'}
+                Right now {rate.sedPerMin.toFixed(3)} SED a minute reaches your skin.
+                {a.lastSunscreenAt
+                  ? ` Your sunscreen is working like SPF ${currentSPF(a).toFixed(1)} (put on ${fmtMinutes((now - a.lastSunscreenAt) / 60_000).replace('~', '')} ago).`
+                  : ' No sunscreen on.'}
               </Muted>
             ) : null}
             <Button kind="sun" title="Log sunscreen" onPress={() => router.push('/sunscreen')} />

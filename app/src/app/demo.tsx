@@ -40,11 +40,10 @@ export default function Demo() {
         <ThemedText type="subtitle">You’re entering a demo</ThemedText>
         <Card tone="sky">
           <Label>{DEMO_PERSONA.name}</Label>
+          <ThemedText type="small">{DEMO_PERSONA.role}</ThemedText>
+          <ThemedText type="small">Skin type II, wears SPF 50</ThemedText>
           <ThemedText type="small">
-            {DEMO_PERSONA.role} · skin type II · SPF 50
-          </ThemedText>
-          <ThemedText type="small">
-            {start.place.name.replace(' (demo)', '')} · Sat 14 Aug 2027 · 5:15 pm
+            {start.place.name.replace(' (demo)', '')}, Saturday 14 August 2027 at 5:15 pm
           </ThemedText>
           <Muted>{DEMO_PERSONA.blurb}</Muted>
         </Card>

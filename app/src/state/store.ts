@@ -262,6 +262,24 @@ function scheduleDemoNudge(moment: DemoMoment) {
   });
 }
 
+/**
+ * Real (non-demo) data must never hold a demo place or demo mode. The old demo
+ * (before personas) put "Miami, FL (demo)" into the real profile, which then never
+ * fetched a forecast and showed the offline estimate. Clear it: the user gets the
+ * "set a location" prompt instead.
+ */
+function withoutDemoLeftovers<T extends Pick<State, 'place' | 'forecast' | 'profile'>>(s: T): T {
+  const demoPlace = s.place?.source === 'demo';
+  const demoMode = s.profile.uvMode === 'demo';
+  if (!demoPlace && !demoMode) return s;
+  return {
+    ...s,
+    place: demoPlace ? null : s.place,
+    forecast: demoPlace ? null : s.forecast,
+    profile: demoMode ? { ...s.profile, uvMode: 'forecast', demoClockOffsetMs: 0 } : s.profile,
+  };
+}
+
 /** Mackenzie's state at a demo moment, built by the real engine. The demo clock starts at that moment and runs. */
 function demoSlices(moment: DemoMoment) {
   const d = buildDemo(moment);
@@ -530,7 +548,7 @@ export const useStore = create<Store>()(
         cancelDemoNudge();
         const s = get();
         const real = s.realSnapshot;
-        if (real) set({ ...real, demo: null, realSnapshot: null, banner: null, forecastError: null });
+        if (real) set({ ...withoutDemoLeftovers(real), demo: null, realSnapshot: null, banner: null, forecastError: null });
         // old-style demo (sky and clock only, before personas): just switch the mode back
         else set({ demo: null, profile: { ...s.profile, uvMode: 'forecast', demoClockOffsetMs: 0 }, place: s.place?.source === 'demo' ? null : s.place });
         lastAlertKey = '';
@@ -548,7 +566,19 @@ export const useStore = create<Store>()(
       name: 'cloudscreen-v1',
       storage: createJSONStorage(() => kvStorage),
       partialize: ({ banner, fetching, forecastError, ...rest }) => rest,
-      version: 1,
+      version: 2,
+      // v2: drop the old demo's place/mode from real data (see withoutDemoLeftovers)
+      migrate: (persisted, version) => {
+        const s = persisted as State;
+        return version < 2 && !s.demo && s.place && s.profile ? withoutDemoLeftovers(s) : s;
+      },
+      // also on every load, in case real data picked one up some other way
+      onRehydrateStorage: () => (s) => {
+        if (s && !s.demo && s.place && s.profile) {
+          const clean = withoutDemoLeftovers(s);
+          if (clean !== s) useStore.setState({ place: clean.place, forecast: clean.forecast, profile: clean.profile });
+        }
+      },
     },
   ),
 );

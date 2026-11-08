@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo } from 'react';
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 
 import { SunMark } from '@/components/cs/sun-mark';
 import { UVChart } from '@/components/cs/charts';
@@ -13,7 +13,7 @@ import { useNow } from '@/hooks/use-app';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
 import { pendingCheckIn, skinProfile, useStore } from '@/state/store';
-import { fmtBurnRange, fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
+import { fmtBurnRange, fmtDay, fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
 export default function Home() {
   const c = useTheme();
@@ -78,16 +78,24 @@ export default function Home() {
           <ThemedText type="small">{new Date(now).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}</ThemedText>
         </Row>
         <ThemedText type="title">Making your day a little brighter</ThemedText>
-        <Muted>
-          {place.name} · {mode === 'forecast' ? 'forecast' : mode === 'demo' ? 'demo (offline physics)' : 'physics fallback'}
-          {forecast && mode === 'forecast' ? ` · updated ${fmtTime(forecast.fetchedAt)}` : ''}
-        </Muted>
+        <Pressable onPress={() => router.push('/profile')} accessibilityRole="button" accessibilityHint="Change your location in Profile" style={{ gap: 2 }}>
+          <ThemedText type="smallBold">{place.name.replace(' (demo)', '')}</ThemedText>
+          <Muted>
+            {mode === 'demo'
+              ? 'Demo sky, offline'
+              : mode === 'forecast' && forecast
+                ? `${reading.cloudSource === 'satellite' ? 'Forecast with live satellite clouds' : 'Forecast'}, updated ${fmtTime(forecast.fetchedAt)}`
+                : profile.uvMode === 'physics'
+                  ? 'Cloudscreen’s own sky model'
+                  : 'Offline estimate until the forecast loads'}
+          </Muted>
+        </Pressable>
       </View>
 
       {banner ? <Banner text={`${banner}. Tap to dismiss.`} tone="danger" onPress={clearBanner} /> : null}
       {pending ? <Banner text="Morning check-in: any redness after yesterday? Tap to answer." onPress={() => router.push({ pathname: '/checkin', params: { day: pending.day } })} /> : null}
       {profile.uvMode === 'forecast' && mode === 'physics' ? (
-        <Banner tone="tint" text={forecastError ? `Forecast unavailable (${forecastError}). Showing our physics estimate.` : 'No forecast for this time. Showing our physics estimate.'} />
+        <Banner tone="tint" text={forecastError ? `Couldn’t load the forecast (${forecastError}). Showing an offline estimate from Cloudscreen’s own model.` : 'No forecast for this time yet. Showing an offline estimate from Cloudscreen’s own model.'} />
       ) : null}
       {reading.clamped ? <Banner tone="tint" text="The forecast value looked wrong and was limited to a physically plausible range." /> : null}
       {stale ? <Banner tone="tint" text="Forecast data is more than 3 hours old." /> : null}
@@ -159,14 +167,18 @@ export default function Home() {
       <Card>
         <Label>A layer of care</Label>
         <ThemedText>
-          {lastSunscreen ? `SPF ${lastSunscreen.spfLabel} · applied ${fmtTime(lastSunscreen.appliedAt)} (${fmtMinutes((now - lastSunscreen.appliedAt) / 60_000)} ago)` : 'None logged today'}
+          {!lastSunscreen
+            ? 'None logged today'
+            : now - lastSunscreen.appliedAt < 12 * 3_600_000
+              ? `SPF ${lastSunscreen.spfLabel}, put on at ${fmtTime(lastSunscreen.appliedAt)} (${fmtMinutes((now - lastSunscreen.appliedAt) / 60_000).replace('~', '')} ago)`
+              : `None today. Last time: SPF ${lastSunscreen.spfLabel} on ${fmtDay(lastSunscreen.appliedAt)}`}
         </ThemedText>
         {active && active.lastSunscreenAt ? <Muted>Protection now about SPF {currentSPF(active).toFixed(1)}</Muted> : null}
         <Button kind="sun" title="Log sunscreen" onPress={() => router.push('/sunscreen')} />
       </Card>
 
       {active ? (
-        <Button title={active.status === 'paused' ? 'Session paused · open' : 'Session running · open'} onPress={() => router.push('/track')} />
+        <Button title={active.status === 'paused' ? 'Open your paused session' : 'Open your running session'} onPress={() => router.push('/track')} />
       ) : (
         <Button title="Start outdoor session" onPress={() => router.push('/track')} />
       )}

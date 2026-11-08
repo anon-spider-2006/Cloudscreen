@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { DemoStrip, useInDemo } from '@/components/cs/demo-strip';
+import { GlassSurface, type GlassTone } from '@/components/cs/glass';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -89,18 +90,22 @@ export function Button({
   accessibilityHint?: string;
 }) {
   const c = useTheme();
-  const bg = kind === 'primary' ? c.tint : kind === 'danger' ? c.danger : kind === 'sun' ? c.sun : c.backgroundSelected;
-  const fg = kind === 'danger' ? c.background : kind === 'secondary' ? c.text : kind === 'sun' ? '#2A1E00' : c.onTint;
+  const tone: GlassTone = kind === 'primary' ? 'sky' : kind === 'sun' ? 'sun' : kind === 'danger' ? 'danger' : 'clear';
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityHint={accessibilityHint}
+      accessibilityState={{ disabled: !!disabled }}
       disabled={disabled}
       onPress={onPress}
-      style={({ pressed }) => [styles.button, { backgroundColor: bg, opacity: disabled ? 0.45 : pressed ? 0.8 : 1 }, style]}>
-      <ThemedText type="smallBold" style={{ color: fg, fontSize: 16 }}>
-        {title}
-      </ThemedText>
+      style={[{ opacity: disabled ? 0.45 : 1 }, style]}>
+      {({ pressed }) => (
+        <GlassSurface tone={tone} pressed={pressed} style={styles.button}>
+          <ThemedText type="smallBold" style={[styles.buttonText, { color: kind === 'danger' ? c.danger : c.text }]}>
+            {title}
+          </ThemedText>
+        </GlassSurface>
+      )}
     </Pressable>
   );
 }
@@ -120,18 +125,14 @@ export function Chips<T extends string | number>({
       {options.map((o) => {
         const on = o.value === value;
         return (
-          <Pressable
-            key={String(o.value)}
-            accessibilityRole="button"
-            accessibilityState={{ selected: on }}
-            onPress={() => onChange(o.value)}
-            style={({ pressed }) => [
-              styles.chip,
-              { backgroundColor: on ? c.tint : c.backgroundElement, borderColor: on ? c.tint : c.border, opacity: pressed ? 0.8 : 1 },
-            ]}>
-            <ThemedText type="small" style={{ color: on ? c.onTint : c.text }}>
-              {o.label}
-            </ThemedText>
+          <Pressable key={String(o.value)} accessibilityRole="button" accessibilityState={{ selected: on }} onPress={() => onChange(o.value)}>
+            {({ pressed }) => (
+              <GlassSurface tone={on ? 'sky' : 'clear'} pressed={pressed} raised={on} style={styles.chip}>
+                <ThemedText type={on ? 'smallBold' : 'small'} style={[styles.chipText, { color: c.text }]}>
+                  {o.label}
+                </ThemedText>
+              </GlassSurface>
+            )}
           </Pressable>
         );
       })}
@@ -154,13 +155,16 @@ export function Bar({ fraction, color }: { fraction: number; color: string }) {
 
 export function Banner({ text, onPress, tone = 'sun' }: { text: string; onPress?: () => void; tone?: 'sun' | 'danger' | 'tint' }) {
   const c = useTheme();
-  const bg = tone === 'danger' ? c.danger : tone === 'tint' ? c.tint : c.sun;
-  const fg = tone === 'danger' ? c.background : tone === 'sun' ? '#2A1E00' : c.onTint;
+  const glass: GlassTone = tone === 'danger' ? 'danger' : tone === 'tint' ? 'sky' : 'sun';
   return (
-    <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} style={[styles.banner, { backgroundColor: bg }]}>
-      <ThemedText type="smallBold" style={{ color: fg }}>
-        {text}
-      </ThemedText>
+    <Pressable onPress={onPress} accessibilityRole={onPress ? 'button' : undefined}>
+      {({ pressed }) => (
+        <GlassSurface tone={glass} radius={18} pressed={pressed && !!onPress} style={styles.banner}>
+          <ThemedText type="smallBold" style={{ color: tone === 'danger' ? c.danger : c.text, padding: Spacing.three }}>
+            {text}
+          </ThemedText>
+        </GlassSurface>
+      )}
     </Pressable>
   );
 }
@@ -190,9 +194,11 @@ const styles = StyleSheet.create({
   label: { textTransform: 'uppercase', letterSpacing: 1.8, fontSize: 12 },
   big: { fontFamily: Fonts.display, fontSize: 80, lineHeight: 88, fontWeight: 800, letterSpacing: -3 },
   row: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
-  button: { minHeight: 50, borderRadius: 4, alignItems: 'center', justifyContent: 'center', paddingHorizontal: Spacing.four },
+  button: { minHeight: 50 },
+  buttonText: { fontSize: 16, textAlign: 'center', paddingHorizontal: Spacing.four, letterSpacing: 0.2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.two },
-  chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 4, borderWidth: 1, minHeight: 38, justifyContent: 'center' },
-  bar: { height: 12, borderRadius: 999, overflow: 'hidden' },
-  banner: { borderRadius: 4, padding: Spacing.three },
+  chip: { minHeight: 38 },
+  chipText: { paddingVertical: 8, paddingHorizontal: 16, textAlign: 'center' },
+  bar: { height: 10, borderRadius: 999, overflow: 'hidden' },
+  banner: {},
 });

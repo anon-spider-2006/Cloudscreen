@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
-import Svg, { Path, Circle } from 'react-native-svg';
+import Svg, { Circle, Path } from 'react-native-svg';
 import { ActivityPicker } from '@/components/cs/activity-picker';
+import { useSunColor } from '@/components/cs/sun-color';
 import { Select, DateSelect } from '@/components/cs/select';
 import { Button, Card, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
@@ -16,6 +17,7 @@ const midnight = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0);
 
 export default function AddSession() {
   const c = useTheme();
+  const sunColor = useSunColor();
   const profile = useStore((s) => s.profile);
   const add = useStore((s) => s.addPastSession);
   const now = nowFor(profile);
@@ -46,9 +48,9 @@ export default function AddSession() {
     <Row style={{ justifyContent: 'space-between' }}>
       <View style={{ flex: 1, gap: 8 }}><ThemedText type="subtitle">A moment outside.</ThemedText></View>
       <Svg width={100} height={84} viewBox="0 0 120 100" aria-hidden>
-        <Circle cx={85} cy={30} r={23} fill={c.sun} />
-        <Path d="M20 76 C0 76 0 46 23 44 C20 14 66 8 74 39 C105 28 122 74 92 76 Z" fill={c.skyIcon} stroke={c.text} strokeWidth={1.5} />
-        <Path d="M25 86 H80 M38 94 H68" stroke={c.coral} strokeWidth={3} />
+        <Circle cx={85} cy={30} r={23} fill={sunColor} />
+        <Path d="M20 76 C0 76 0 46 23 44 C20 14 66 8 74 39 C105 28 122 74 92 76 Z" fill={c.skyIcon} stroke={c.text} strokeOpacity={0.35} strokeWidth={1.25} strokeLinejoin="round" />
+        <Path d="M25 86 H80 M38 94 H68" stroke={c.coral} strokeOpacity={0.8} strokeWidth={2.5} strokeLinecap="round" />
       </Svg>
     </Row>
     <Card>
@@ -60,7 +62,13 @@ export default function AddSession() {
         <View style={{ flex: 1 }}><Select label="Hours" value={hours} options={Array.from({ length: 25 }, (_, value) => ({ value, label: `${value} h` }))} onChange={setHours} /></View>
         <View style={{ flex: 1 }}><Select label="Minutes" value={minutes} options={Array.from({ length: 60 }, (_, value) => ({ value, label: `${value} min` }))} onChange={setMinutes} /></View>
       </Row>
-      {start !== null && end !== null ? <Muted>{new Date(start).toLocaleDateString()} · {fmtTime(start)} → {new Date(end).toLocaleDateString()} · {fmtTime(end)}</Muted> : null}
+      {start !== null && end !== null ? (
+        <Muted>
+          {new Date(start).toDateString() === new Date(end).toDateString()
+            ? `${fmtTime(start)} to ${fmtTime(end)}`
+            : `${fmtTime(start)} to ${fmtTime(end)} the next day`}
+        </Muted>
+      ) : null}
       {validation ? <ThemedText type="small" style={{ color: c.danger }}>{validation}</ThemedText> : null}
     </Card>
     <Card>
@@ -73,11 +81,11 @@ export default function AddSession() {
     <Button title="Add session" disabled={start === null || !!validation} onPress={() => {
       if (start === null || end === null || validation) return;
       const shade = activity.shade ?? 'none';
-      // label it with the matching preset (or keep the default name; History shows "Custom · …" when settings differ)
+      // label it with the matching preset (or keep the default name; History shows "Custom: …" when settings differ)
       const preset = presetMatching(activity, profile.preset) ?? profile.preset;
       const result = add({ start, end, preset, shade, sunscreenAt: sunscreen === 'start' ? start : null, settings: { ...activity, shade } });
       if (result.ok) router.back(); else setError(result.reason);
     }} />
-    <Muted>Calculated from the available forecast or UV estimate for those hours and labelled “added later · estimated”.</Muted>
+    <Muted>Calculated from the available forecast or UV estimate for those hours and labelled “added later”.</Muted>
   </Screen>;
 }

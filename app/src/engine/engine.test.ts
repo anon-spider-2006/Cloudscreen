@@ -4,8 +4,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { fmtBurnRange } from '../utils/format.ts';
+import { sunColorFor } from '../utils/sun-color.ts';
 import { buildDemo, DEMO_MOMENTS, DEMO_NUDGES, DEMO_PROFILE } from '../demo/mackenzie.ts';
-import { cUserOf, project } from '../model/index.ts';
+import { cUserOf, project, solarPhase } from '../model/index.ts';
 import {
   answerCheckIn,
   applySunscreen,
@@ -393,10 +394,10 @@ test('activity: each preset matches itself; any changed detail is Custom; labels
   }
   const custom = { ...settingsForPreset('walk'), activity: 'swimming' as const };
   assert.equal(presetMatching(custom), null);
-  assert.equal(activityLabel('walk', custom), 'Custom · Upright · Pavement / concrete · Swimming / in water');
+  assert.equal(activityLabel('walk', custom), 'Custom: Upright, Pavement / concrete, Swimming / in water');
   // a custom outing that happens to equal another preset is labelled as that preset, not the stored one
   assert.equal(activityLabel('walk', settingsForPreset('beach')), 'Beach');
-  assert.equal(describeSettings({ ...settingsForPreset('beach'), shade: 'umbrella' }), 'Lying down · Dry sand · Swimming / in water · Umbrella / awning');
+  assert.equal(describeSettings({ ...settingsForPreset('beach'), shade: 'umbrella' }), 'Lying down, Dry sand, Swimming / in water, Umbrella / awning');
 });
 
 test('activity: "shoulders" is not a separate model choice — it tracks the same sites and dose as upright', () => {
@@ -409,4 +410,30 @@ test('activity: "shoulders" is not a separate model choice — it tracks the sam
   near(currentFraction(b, profile).fraction, currentFraction(a, profile).fraction, 1e-12);
   // so old sessions saved with it still label as the upright preset
   assert.equal(presetMatching(sh), 'walk');
+});
+
+// ---------------------------------------------------------------- sun icon colour
+
+test('sun icon colour: yellow in the morning, warming as the evening sun sinks, dusk below the horizon', () => {
+  const SUN = '#FFDF38';
+  const CORAL = '#FF8669';
+  // morning stays yellow even when low
+  assert.equal(sunColorFor(5, true, SUN, CORAL), SUN);
+  assert.equal(sunColorFor(45, false, SUN, CORAL), SUN);
+  // evening: warmer (less green, which is what separates yellow from red) the lower it gets
+  const g = (h: string) => parseInt(h.slice(3, 5), 16);
+  const ev = [30, 20, 12, 6, 2, 0].map((e) => sunColorFor(e, false, SUN, CORAL));
+  for (let i = 1; i < ev.length; i++) assert.ok(g(ev[i]) <= g(ev[i - 1]), `${ev[i - 1]} → ${ev[i]}`);
+  assert.equal(sunColorFor(4, false, SUN, CORAL), CORAL);
+  assert.equal(sunColorFor(-5, true, SUN, CORAL), sunColorFor(-5, false, SUN, CORAL)); // night is night either way
+  // the demo's three moments tell the evening story
+  const at = (m: 'dock' | 'trailhead' | 'summit') => {
+    const d = buildDemo(m);
+    const p = solarPhase(new Date(d.now), d.place.lat, d.place.lon);
+    return { ...p, color: sunColorFor(p.elevationDeg, p.rising, SUN, CORAL) };
+  };
+  assert.equal(at('dock').rising, true);
+  assert.equal(at('dock').color, SUN);
+  assert.equal(at('trailhead').rising, false);
+  assert.ok(g(at('summit').color) < g(at('trailhead').color), 'summit sun is warmer than the trailhead sun');
 });

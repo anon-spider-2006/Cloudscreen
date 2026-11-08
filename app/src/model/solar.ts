@@ -25,4 +25,11 @@ export function sunEarthDistanceFactor(date: Date): number {
   return 1 + 0.0334 * Math.cos((2 * Math.PI * (dayOfYear - 2.7)) / 365.25);
 }
 
+/** The sun's height above the horizon (degrees; negative = below) and whether it's still climbing (morning). */
+export function solarPhase(date: Date, lat: number, lon: number): { elevationDeg: number; rising: boolean } {
+  const z = solarZenithDeg(date, lat, lon);
+  const zLater = solarZenithDeg(new Date(date.getTime() + 10 * 60_000), lat, lon);
+  return { elevationDeg: 90 - z, rising: zLater < z };
+}
+
 export { DEG };
