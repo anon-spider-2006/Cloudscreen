@@ -8,6 +8,7 @@ import { TrendsCard } from '@/components/cs/trends';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
 import { localDayKey, skinDose, summarizeDays } from '@/engine';
+import { useNow } from '@/hooks/use-app';
 import { useTheme } from '@/hooks/use-theme';
 import { PRESETS } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
@@ -18,10 +19,12 @@ export default function History() {
   const sessions = useStore((s) => s.sessions);
   const profile = useStore((s) => s.profile);
   const days = useMemo(() => summarizeDays(sessions, skinProfile(profile)), [sessions, profile]);
+  // app clock (the demo clock in demo mode), bucketed to the hour
+  const hour = Math.floor(useNow() / 3_600_000);
 
   const last14 = useMemo(() => {
     const out: { key: string; sed: number; frac: number; t: number }[] = [];
-    const today = new Date();
+    const today = new Date(hour * 3_600_000);
     today.setHours(12, 0, 0, 0);
     for (let i = 13; i >= 0; i--) {
       const t = today.getTime() - i * 86_400_000;
@@ -30,7 +33,7 @@ export default function History() {
       out.push({ key, sed: d?.unprotectedSED ?? 0, frac: d?.peakFraction ?? 0, t });
     }
     return out;
-  }, [days]);
+  }, [days, hour]);
 
   const maxSed = Math.max(1, ...last14.map((d) => d.sed));
 

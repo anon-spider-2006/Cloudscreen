@@ -61,13 +61,15 @@ export interface UVContext {
   mode: UVMode;
   /** Location uncertainty, km. Stays on device. */
   accuracyKm?: number;
+  /** Altitude above sea level, km (UV +5%/km). Default: the forecast's elevation, else 0. */
+  altitudeKm?: number;
   forecast?: Forecast;
   satellite?: SatelliteObs;
   demoClouds?: CloudLayers;
 }
 
 export function readAt(ctx: UVContext, t: number): UVReading {
-  return readUV({ t, lat: ctx.lat, lon: ctx.lon, accuracyKm: ctx.accuracyKm }, ctx.mode, {
+  return readUV({ t, lat: ctx.lat, lon: ctx.lon, accuracyKm: ctx.accuracyKm, altitudeKm: ctx.altitudeKm }, ctx.mode, {
     forecast: ctx.forecast,
     satellite: ctx.satellite,
     demoClouds: ctx.demoClouds,

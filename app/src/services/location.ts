@@ -11,6 +11,8 @@ export interface Place {
    * user could be anywhere in town. Never sent off device.
    */
   accuracyKm?: number;
+  /** Elevation above sea level, m (demo places; real places take it from the forecast). */
+  elevationM?: number;
 }
 
 /** Assumed spread of a picked city (km). */
@@ -32,7 +34,6 @@ export const CITIES: Place[] = [
   { name: 'Singapore', lat: 1.3521, lon: 103.8198, source: 'manual' },
 ];
 
-export const DEMO_PLACE: Place = { name: 'Miami, FL (demo)', lat: 25.7617, lon: -80.1918, source: 'demo' };
 
 export type LocateResult = { ok: true; place: Place } | { ok: false; reason: 'denied' | 'unavailable' };
 

@@ -223,6 +223,29 @@ Numbers below come from the generated reports: `model-fit/report.md` (Open-Meteo
 
 - Re-exports everything, so the app can write `import { project, readUV } from '@/model'`.
 
+### 15. Demo mode (src/demo/mackenzie.ts, src/app/demo.tsx)
+
+- **The persona:** a made-up person, Mackenzie McHale (a fan reference to HBO's The Newsroom; swap the name before any public release). Skin type II, with a hidden true MED of about 2.7 SED. She uses SPF 50, chemical, applied at 1 mg/cm², not water-resistant.
+- **Her history:**
+  - two weeks in Manhattan, with a rooftop-lunch burn on 2 Aug and better habits the week after;
+  - today, Sat 14 Aug 2027: a 30 min lunch under an umbrella on a Lake George dock, then an evening hike up Cascade Mountain (trailhead 640 m, summit 1,249 m; wooded lower trail, then open rock).
+- **Built by the real engine:** buildDemo(moment) creates all of it. Each outing is judged against her calibration at the time, and each next-morning check-in is answered before the next outing. So every number on screen is the model's, and a test checks every check-in answer against her computed dose.
+- **Three moments:**
+
+| moment | UV | today so far | bare-skin time to burn |
+|---|---|---|---|
+| 12:30 on the dock (lunch running) | 7.7 | 16% | 54 min–1 h 55 min |
+| 5:15 pm at the trailhead (start) | 1.6 | 31% | possible after 1 h 20 min |
+| 7:00 pm on the summit (hike running) | 0.2 | 42% | not expected today |
+
+- **The Trends story:** more time out this week than last (250 vs 230 min) but much less dose (6.1 vs 14.5 SED), and near-burn days down from 2 to 1. Sunscreen cut her dose by 81% when worn, against SPF 50 on the label. Her estimate settles at about 2.5 SED, below the type II average, with the range 42% narrower.
+- **Behaviour:**
+  - Enter from Profile or "Just looking? Try the demo" in onboarding.
+  - The real profile, place, forecast, satellite data, sessions, sunscreen log, check-ins and any active session are set aside in realSnapshot. That's persisted, so it survives the app closing mid-demo, and exit restores it exactly.
+  - A coral strip on every screen shows the persona and demo clock, and opens the controls: jump to a moment, the sky sliders, restart, exit.
+  - The demo clock runs from the chosen moment. The demo never fetches and never schedules notifications, and location changes are ignored.
+  - It replaces the old Miami demo, which changed only the sky and clock.
+
 ## The fit pipeline (offline; not part of the app)
 
 All scripts import the app's own model code, so the pipeline scores what ships. Run them from the repo root (Node ≥ 23.6, plus Python with numpy, pandas and scipy).
@@ -261,7 +284,7 @@ The old rule ratchets your MED down to about half its true value, so it tells pe
 
 ## Tests
 
-- app/src/model/model.test.ts (29 tests) and app/src/engine/engine.test.ts (19 tests). Run them with `npm run test:model` from app/. They also work as runnable examples of how to call each function.
+- app/src/model/model.test.ts (29 tests) and app/src/engine/engine.test.ts (22 tests). Run them with `npm run test:model` from app/. They also work as runnable examples of how to call each function.
 - One test per claim, for example:
   - overhead sun gives about 11.8;
   - 1 h at UVI 8 lying unprotected gives 7.2 SED;
@@ -274,7 +297,8 @@ The old rule ratchets your MED down to about half its true value, so it tells pe
   - "pink" moves the MED estimate toward that day's dose;
   - swimming and sweating raise skin dose by 1/(1 − r), physical dose doesn't change, and the effect is gone 20 min after drying;
   - demo sessions are never calibration evidence;
-  - the trends: rolling week comparison, sunscreen time with pauses excluded, the dose sunscreen removed, and the skin range narrowing with check-ins.
+  - the trends: rolling week comparison, sunscreen time with pauses excluded, the dose sunscreen removed, and the skin range narrowing with check-ins;
+  - the demo persona: each moment's sessions, check-in answers consistent with her dose, and the trends story.
 
 ## Known limits and next steps
 

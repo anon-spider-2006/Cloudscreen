@@ -48,7 +48,8 @@ import {
   privacyCell,
   SAT_REFRESH_PAST_HOURS,
 } from '@/model';
-import { accuracyKmOf, DEMO_PLACE, kmBetween, type Place } from '@/services/location';
+import { buildDemo, DEMO_MOMENTS, DEMO_PROFILE, DEMO_START, type DemoMoment } from '@/demo/mackenzie';
+import { accuracyKmOf, kmBetween, type Place } from '@/services/location';
 import * as notify from '@/services/notifications';
 
 import { kvStorage } from './storage';
@@ -113,7 +114,14 @@ interface State {
   checkIns: CheckIn[];
   /** Fired-in-foreground thresholds waiting for an in-app banner. */
   banner: string | null;
+  /** Demo persona in use, or null. */
+  demo: { moment: DemoMoment } | null;
+  /** The real user's data while a demo is running. */
+  realSnapshot: RealSnapshot | null;
 }
+
+/** The parts of state a demo replaces (and exit restores). */
+type RealSnapshot = Pick<State, 'profile' | 'place' | 'forecast' | 'satellite' | 'shade' | 'custom' | 'active' | 'sessions' | 'sunscreen' | 'checkIns'>;
 
 interface Actions {
   setProfile: (p: Partial<Profile>) => void;
@@ -132,8 +140,11 @@ interface Actions {
   deleteSession: (id: string) => void;
   answerCheckIn: (day: string, r: Redness) => void;
   resetCalibration: () => void;
-  startDemo: () => void;
-  stopDemo: () => void;
+  /** Enter the Mackenzie demo (sets your data aside); if already in it, jump to `moment`. */
+  enterDemo: (moment?: DemoMoment) => void;
+  jumpDemo: (moment: DemoMoment) => void;
+  /** Leave the demo and put your data back exactly as it was. */
+  exitDemo: () => void;
   clearBanner: () => void;
   deleteAll: () => void;
 }
@@ -165,6 +176,7 @@ export function uvContext(s: Pick<State, 'place' | 'forecast' | 'profile'> & Par
     lat: s.place.lat,
     lon: s.place.lon,
     accuracyKm: accuracyKmOf(s.place),
+    altitudeKm: s.place.elevationM != null ? s.place.elevationM / 1000 : undefined,
     mode: s.profile.uvMode,
     forecast: forecastUsable ? s.forecast! : undefined,
     satellite: satUsable ? sat! : undefined,
@@ -213,6 +225,24 @@ function thresholdMinutes(s: Session, ctx: UVContext, profile: SkinProfile, caut
 
 let lastAlertKey = '';
 
+/** Mackenzie's state at a demo moment, built by the real engine. The demo clock starts at that moment and runs. */
+function demoSlices(moment: DemoMoment) {
+  const d = buildDemo(moment);
+  const base: Profile = { ...DEFAULT_PROFILE, ...DEMO_PROFILE, demoClockOffsetMs: DEMO_MOMENTS[moment].t - Date.now() };
+  return {
+    profile: recalibrated(base, d.checkIns),
+    place: d.place as Place,
+    forecast: null,
+    satellite: null,
+    shade: (d.active?.settings.shade ?? 'none') as Shade,
+    custom: null,
+    active: d.active,
+    sessions: d.sessions,
+    sunscreen: d.sunscreen as LoggedSunscreen[],
+    checkIns: d.checkIns,
+  };
+}
+
 // ---------------------------------------------------------------- store
 
 export const useStore = create<Store>()(
@@ -231,6 +261,8 @@ export const useStore = create<Store>()(
       sunscreen: [],
       checkIns: [],
       banner: null,
+      demo: null,
+      realSnapshot: null,
 
       setProfile: (p) =>
         set((s) => {
@@ -240,13 +272,14 @@ export const useStore = create<Store>()(
         }),
 
       setPlace: (place) => {
+        if (get().demo) return; // the demo has its own places; don't touch the real one or fetch
         set({ place });
         void get().refreshForecast();
       },
 
       refreshForecast: async (force = false) => {
-        const { place, forecast, satellite, fetching } = get();
-        if (!place || fetching || place.source === 'demo') return;
+        const { place, forecast, satellite, fetching, demo } = get();
+        if (!place || fetching || demo || place.source === 'demo') return;
         // Providers only ever see the privacy cell centre, never the user's point (SPECS §3.2 Privacy)
         const cell = privacyCell(place.lat, place.lon);
         const now = Date.now();
@@ -450,30 +483,41 @@ export const useStore = create<Store>()(
       resetCalibration: () =>
         set((s) => ({ profile: recalibrated({ ...s.profile, calibrationResetAt: Date.now() }, s.checkIns) })),
 
-      startDemo: () => {
-        // "Miami, July, noon": next 15 July at 12:30 EDT, clear sky, physics model.
-        const y = new Date().getUTCFullYear();
-        let target = Date.UTC(y, 6, 15, 16, 30);
-        if (target < Date.now() - 180 * 86_400_000) target = Date.UTC(y + 1, 6, 15, 16, 30);
+      enterDemo: (moment = DEMO_START) => {
         const s = get();
-        if (s.active) get().end();
-        set({
-          place: DEMO_PLACE,
-          profile: { ...s.profile, uvMode: 'demo', demoClockOffsetMs: target - Date.now(), demoClouds: { low: 0, mid: 0, high: 0 } },
-        });
+        if (s.demo) return get().jumpDemo(moment);
+        // set the real data aside (persisted, so it survives the app closing mid-demo)
+        const realSnapshot: RealSnapshot = {
+          profile: s.profile, place: s.place, forecast: s.forecast, satellite: s.satellite, shade: s.shade,
+          custom: s.custom, active: s.active, sessions: s.sessions, sunscreen: s.sunscreen, checkIns: s.checkIns,
+        };
+        void notify.cancelBurnAlerts();
+        void notify.cancel('sunscreen');
+        set({ realSnapshot, demo: { moment }, ...demoSlices(moment), banner: null, forecastError: null });
+        lastAlertKey = '';
       },
 
-      stopDemo: () => {
+      jumpDemo: (moment) => {
+        if (!get().demo) return;
+        set({ demo: { moment }, ...demoSlices(moment), banner: null });
+        lastAlertKey = '';
+      },
+
+      exitDemo: () => {
         const s = get();
-        if (s.active) get().end();
-        set({ profile: { ...s.profile, uvMode: 'forecast', demoClockOffsetMs: 0 }, place: s.place?.source === 'demo' ? null : s.place });
+        const real = s.realSnapshot;
+        if (real) set({ ...real, demo: null, realSnapshot: null, banner: null, forecastError: null });
+        // old-style demo (sky and clock only, before personas): just switch the mode back
+        else set({ demo: null, profile: { ...s.profile, uvMode: 'forecast', demoClockOffsetMs: 0 }, place: s.place?.source === 'demo' ? null : s.place });
+        lastAlertKey = '';
+        void get().refreshForecast(true);
       },
 
       clearBanner: () => set({ banner: null }),
 
       deleteAll: () => {
         void notify.cancelBurnAlerts();
-        set({ profile: DEFAULT_PROFILE, place: null, forecast: null, satellite: null, active: null, sessions: [], sunscreen: [], checkIns: [], custom: null, shade: 'none' });
+        set({ profile: DEFAULT_PROFILE, place: null, forecast: null, satellite: null, active: null, sessions: [], sunscreen: [], checkIns: [], custom: null, shade: 'none', demo: null, realSnapshot: null });
       },
     }),
     {

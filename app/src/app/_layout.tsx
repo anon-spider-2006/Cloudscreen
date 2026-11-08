@@ -55,6 +55,7 @@ export default function RootLayout() {
         <Stack.Screen name="add-session" options={{ title: 'Add time outside', presentation: 'modal' }} />
         <Stack.Screen name="checkin" options={{ title: 'Morning check-in', presentation: 'modal' }} />
         <Stack.Screen name="session/[id]" options={{ title: 'Session' }} />
+        <Stack.Screen name="demo" options={{ title: 'Demo', presentation: 'modal' }} />
       </Stack>
     </ThemeProvider>
   );

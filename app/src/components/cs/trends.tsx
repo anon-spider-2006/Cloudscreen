@@ -12,7 +12,7 @@ import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
 import { Bar, Card, Label, Muted, Row } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { NEAR_BURN_FRACTION, rangeNarrowing, skinLearning, sunscreenHabit, weekCompare, type SkinLearningPoint } from '@/engine';
-import { useWallClock } from '@/hooks/use-app';
+import { useNow } from '@/hooks/use-app';
 import { useTheme } from '@/hooks/use-theme';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtSED, fmtShortDuration } from '@/utils/format';
@@ -90,8 +90,8 @@ export function TrendsCard() {
   const sessions = useStore((s) => s.sessions);
   const checkIns = useStore((s) => s.checkIns);
   const profile = useStore((s) => s.profile);
-  // real wall clock (trends ignore demo sessions), bucketed to the hour so it recomputes rarely
-  const hour = Math.floor(useWallClock() / 3_600_000);
+  // app clock (the demo clock while the demo persona is loaded), bucketed to the hour
+  const hour = Math.floor(useNow() / 3_600_000);
 
   const data = useMemo(() => {
     const now = (hour + 1) * 3_600_000;

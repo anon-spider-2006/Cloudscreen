@@ -4,7 +4,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { fmtBurnRange } from '../utils/format.ts';
-import { project } from '../model/index.ts';
+import { buildDemo, DEMO_MOMENTS, DEMO_PROFILE } from '../demo/mackenzie.ts';
+import { cUserOf, project } from '../model/index.ts';
 import {
   answerCheckIn,
   applySunscreen,
@@ -306,4 +307,50 @@ test('trends: skin learning starts at the prior and the range narrows with check
   assert.equal(rangeNarrowing(pts.slice(0, 1)), 0);
   // answers before a reset are ignored
   assert.equal(skinLearning(2, answers, Number.MAX_SAFE_INTEGER).length, 1);
+});
+
+// ---------------------------------------------------------------- demo persona (Mackenzie)
+
+
+test('demo: Mackenzie at each moment — history, today, and an active session where one is running', () => {
+  const t = buildDemo('trailhead');
+  assert.equal(t.active, null);
+  assert.equal(t.sessions.length, 9); // 8 in Manhattan + today's lunch
+  assert.equal(t.checkIns.length, 6);
+  assert.ok(t.sessions.every((s) => s.status === 'completed' && !s.demo), 'her sessions count in her trends and calibration');
+  assert.equal(t.now, DEMO_MOMENTS.trailhead.t);
+  const dock = buildDemo('dock');
+  assert.equal(dock.active?.preset, 'picnic');
+  assert.equal(dock.sessions.length, 8);
+  const summit = buildDemo('summit');
+  assert.equal(summit.active?.preset, 'walk');
+  assert.equal(summit.active?.settings.shade, 'none'); // out of the trees near the top
+  assert.equal(summit.place.elevationM, 1249);
+  assert.equal(DEMO_PROFILE.notifications, false);
+});
+
+test('demo: every check-in answer is consistent with the dose the model gives her (true MED ≈ 2.7 SED)', () => {
+  const { sessions, checkIns } = buildDemo('trailhead');
+  for (const c of checkIns) {
+    const dose = c.doseSED! / 2.7;
+    if (c.redness === 'burned') assert.ok(dose > 2, `${c.day} burned at ${dose.toFixed(2)} MED`);
+    if (c.redness === 'pink') assert.ok(dose > 0.9 && dose < 2, `${c.day} pink at ${dose.toFixed(2)} MED`);
+    if (c.redness === 'none') assert.ok(dose < 0.6, `${c.day} none at ${dose.toFixed(2)} MED`);
+  }
+  // the app learns she burns sooner than the type-II average, and her truth is inside the range
+  const post = calibrate(2, checkIns);
+  assert.ok(post.median < 3 && post.q10 < 2.7 && 2.7 < post.q90, `${post.q10}–${post.median}–${post.q90}`);
+  assert.ok(sessions.length > 0);
+});
+
+test('demo: the trends tell the story — more time out this week, much less dose, fewer near-burn days', () => {
+  const d = buildDemo('trailhead');
+  const post = calibrate(2, d.checkIns);
+  const w = weekCompare(d.sessions, { skinType: 2, cUser: cUserOf(2, post) }, d.now);
+  assert.ok(w.thisWeek.outdoorSeconds > w.lastWeek.outdoorSeconds);
+  assert.ok(w.thisWeek.protectedSED < 0.6 * w.lastWeek.protectedSED);
+  assert.ok(w.thisWeek.nearBurnDays < w.lastWeek.nearBurnDays);
+  const h = sunscreenHabit(d.sessions, d.now);
+  assert.ok(h.doseCut! > 0.5 && h.labelSpf === 50);
+  assert.ok(rangeNarrowing(skinLearning(2, d.checkIns)) > 0.25);
 });

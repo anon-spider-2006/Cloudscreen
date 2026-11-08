@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { DemoStrip, useInDemo } from '@/components/cs/demo-strip';
 import { ThemedText } from '@/components/themed-text';
 import { BottomTabInset, Fonts, MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/use-theme';
@@ -10,17 +11,24 @@ import { useTheme } from '@/hooks/use-theme';
 export function Screen({ children, tabbed = true }: { children: ReactNode; tabbed?: boolean }) {
   const c = useTheme();
   const insets = useSafeAreaInsets();
+  const demo = useInDemo();
+  // in demo, a sticky coral strip sits under the status bar and the content starts below it
+  const topInset = tabbed ? insets.top : 0;
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: c.background }}
       contentInsetAdjustmentBehavior="automatic"
+      stickyHeaderIndices={demo ? [0] : undefined}
       contentContainerStyle={{
-        paddingTop: insets.top + Spacing.four,
+        paddingTop: demo ? 0 : insets.top + Spacing.four,
         paddingBottom: insets.bottom + (tabbed ? BottomTabInset + 88 : 0) + Spacing.five,
-        paddingHorizontal: Spacing.four,
-        alignItems: 'center',
+        paddingHorizontal: demo ? 0 : Spacing.four,
+        alignItems: demo ? 'stretch' : 'center',
       }}>
-      <View style={styles.column}>{children}</View>
+      {demo ? <DemoStrip topInset={topInset} /> : null}
+      <View style={demo ? { alignItems: 'center', paddingHorizontal: Spacing.four, paddingTop: Spacing.four } : undefined}>
+        <View style={styles.column}>{children}</View>
+      </View>
     </ScrollView>
   );
 }
