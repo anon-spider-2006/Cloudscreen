@@ -54,7 +54,7 @@ export default function AddSession() {
       <View style={{ flex: 1, gap: 8 }}><ThemedText type="subtitle">A moment outside.</ThemedText></View>
       <Svg width={100} height={84} viewBox="0 0 120 100" aria-hidden>
         <Circle cx={85} cy={30} r={23} fill={c.sun} />
-        <Path d="M20 76 C0 76 0 46 23 44 C20 14 66 8 74 39 C105 28 122 74 92 76 Z" fill={c.tint} stroke={c.text} strokeWidth={1.5} />
+        <Path d="M20 76 C0 76 0 46 23 44 C20 14 66 8 74 39 C105 28 122 74 92 76 Z" fill={c.skyIcon} stroke={c.text} strokeWidth={1.5} />
         <Path d="M25 86 H80 M38 94 H68" stroke={c.coral} strokeWidth={3} />
       </Svg>
     </Row>

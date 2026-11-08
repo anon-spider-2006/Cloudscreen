@@ -25,9 +25,9 @@ export function Screen({ children, tabbed = true }: { children: ReactNode; tabbe
   );
 }
 
-export function Card({ children, style, tone = 'plain' }: { children: ReactNode; style?: StyleProp<ViewStyle>; tone?: 'plain' | 'sun' | 'tint' }) {
+export function Card({ children, style, tone = 'plain' }: { children: ReactNode; style?: StyleProp<ViewStyle>; tone?: 'plain' | 'sun' | 'tint' | 'sky' }) {
   const c = useTheme();
-  const bg = tone === 'sun' ? c.sunSoft : tone === 'tint' ? c.backgroundSelected : c.backgroundElement;
+  const bg = tone === 'sun' ? c.sunSoft : tone === 'tint' ? c.backgroundSelected : tone === 'sky' ? c.skySoft : c.backgroundElement;
   return <View style={[styles.card, { backgroundColor: bg, borderColor: c.border, ...(tone === 'plain' ? { paddingHorizontal: 0 } : {}) }, style]}>{children}</View>;
 }
 

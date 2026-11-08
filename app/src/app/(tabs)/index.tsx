@@ -93,7 +93,7 @@ export default function Home() {
       {reading.clamped ? <Banner tone="tint" text="The forecast value looked wrong and was limited to a physically plausible range." /> : null}
       {stale ? <Banner tone="tint" text="Forecast data is more than 3 hours old." /> : null}
 
-      <Card tone="tint">
+      <Card tone="sky">
         <Label>Under this sky</Label>
         <Muted>Current UV index</Muted>
         <Row style={{ alignItems: 'flex-end', justifyContent: 'space-between' }}>
