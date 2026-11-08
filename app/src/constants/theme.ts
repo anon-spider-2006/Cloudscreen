@@ -1,10 +1,5 @@
 /**
-<<<<<<< Updated upstream
- * Cloudscreen design tokens (§16.1). Apothecary palette: honey yellow, warm black, cream and kraft,
- * with a botanical green. Black buttons in light mode, honey buttons in dark mode.
-=======
  * Cloudscreen design tokens. Bright sky, lemon and coral accents with calm, readable surfaces.
->>>>>>> Stashed changes
  */
 
 import '@/global.css';
@@ -43,7 +38,7 @@ export function fractionColor(f: number, c: Palette): string {
   if (f >= 1) return c.danger;
   if (f >= 0.8) return c.warning;
   if (f >= 0.5) return c.sun;
-  return c.calm;
+  return c.tint;
 }
 
 export const Fonts = {
