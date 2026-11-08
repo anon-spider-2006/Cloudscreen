@@ -7,10 +7,9 @@ import { Bar, Button, Card, Disclaimer, Label, Muted, Row, Screen } from '@/comp
 import { TrendsCard } from '@/components/cs/trends';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
-import { localDayKey, skinDose, summarizeDays } from '@/engine';
+import { activityLabel, localDayKey, skinDose, summarizeDays } from '@/engine';
 import { useNow } from '@/hooks/use-app';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtDay, fmtPct, fmtSED, fmtShortDuration, fmtTime } from '@/utils/format';
 
@@ -83,7 +82,7 @@ export default function History() {
               <Pressable key={s.id} accessibilityRole="button" onPress={() => router.push({ pathname: '/session/[id]', params: { id: s.id } })}>
                 <Row style={{ justifyContent: 'space-between', paddingVertical: 6 }}>
                   <ThemedText type="small">
-                    {fmtTime(s.startedAt)}–{fmtTime(s.endedAt ?? s.lastT)} · {PRESETS[s.preset].label}
+                    {fmtTime(s.startedAt)}–{fmtTime(s.endedAt ?? s.lastT)} · {activityLabel(s.preset, s.settings)}
                     {s.trackingMode === 'retroactive' ? ' · added later' : ''}
                     {s.demo ? ' · demo' : ''}
                   </ThemedText>

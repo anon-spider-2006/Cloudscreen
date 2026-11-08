@@ -51,6 +51,17 @@ async function scheduleAt(identifier: string, date: Date, title: string, body: s
   }).catch(() => {});
 }
 
+/** True when a real OS notification can be shown (native + permission). */
+export async function canNotify(): Promise<boolean> {
+  if (!supported) return false;
+  return (await Notifications.getPermissionsAsync().catch(() => null))?.granted ?? false;
+}
+
+/** The demo's one scripted notification (fixed id, so restarting the demo replaces it). */
+export async function scheduleDemoNudge(afterSec: number, title: string, body: string) {
+  await scheduleAt('demo-nudge', new Date(Date.now() + afterSec * 1000), title, body);
+}
+
 export async function cancel(identifier: string) {
   if (!supported) return;
   await Notifications.cancelScheduledNotificationAsync(identifier).catch(() => {});

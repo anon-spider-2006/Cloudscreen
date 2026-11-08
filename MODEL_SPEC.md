@@ -200,6 +200,12 @@ Numbers below come from the generated reports: `model-fit/report.md` (Open-Meteo
   - The wording says "You may be at…".
 - checkInForDay builds a check-in from the day's non-demo sessions: total worst-site dose, its UV log-SD, and whether sunscreen was used. answerCheckIn records the answer and the posterior after it (medAfter). calibrate rebuilds the posterior from all answers since the last reset.
 - The planner (planDay) still ranks start times with the central estimate only.
+- Activity input is the same on every screen (components/cs/activity-picker.tsx: Track, Add time outside and the Forecast planner). It offers exactly the inputs the model distinguishes:
+  - the 6 presets (each a bundle of position, ground and skin state);
+  - shade;
+  - details: position (upright or lying; any upright setting tracks face/arms and shoulders, so "shoulders" isn't a separate choice), ground (5 surfaces), and skin state (dry, sweating or swimming), each with its effect explained.
+  - Changing a detail makes it "Custom". Every label comes from activityLabel(preset, settings): the matching preset's name, or "Custom · Position · Ground · Skin". So a session is never shown under a preset it doesn't match.
+  - The store's single setActivity action records the choice, remembering a preset match as the default and anything else as custom. A running session switches from then on and keeps its dose. Picking a default activity in Profile clears any custom choice for the next session.
 - Trends (History tab, components/cs/trends.tsx) are computed on device from saved sessions and check-ins. Demo sessions are excluded.
   - weekCompare: the last 7 days vs the 7 before them (rolling, so no locale-dependent week start). It covers time outside, the dose your skin actually got (with sunscreen, worst site), and near-burn days (peak burn progress ≥ 80%).
   - sunscreenHabit (30 days): the share of outdoor time after sunscreen went on, read from each session's start/pause/resume/sunscreen/end events, so pauses don't count. It also gives the share of the bare-skin dose sunscreen removed on days you wore it. That uses session totals, so time before applying and wear-off count: it's what the habit achieved, not the label SPF.

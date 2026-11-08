@@ -2,9 +2,9 @@ import { useMemo } from 'react';
 
 import { Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
-import { bandFor, explainRate, worstOf } from '@/engine';
+import { activityLabel, bandFor, explainRate, worstOf } from '@/engine';
 import { useConditions } from '@/hooks/use-conditions';
-import { MED_SED, PRESETS, SHADES, SURFACES } from '@/model';
+import { MED_SED, SHADES, SURFACES } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtBurnRange, SITE_LABEL } from '@/utils/format';
 
@@ -67,7 +67,7 @@ export default function Why() {
         <Line
           label={`× ${SITE_LABEL[site].toLowerCase()} on ${SURFACES[settings.surface].label.toLowerCase()}`}
           value={r.geometry.toFixed(2)}
-          note={`${PRESETS[active?.preset ?? profile.preset].label} · ${SHADES[settings.shade ?? 'none'].label}. Upright skin catches less than a flat surface; ground reflection adds back.`}
+          note={`${activityLabel(active?.preset ?? profile.preset, settings)} · ${SHADES[settings.shade ?? 'none'].label}. Upright skin catches less than a flat surface; ground reflection adds back.`}
         />
         <Line
           label="÷ sunscreen, now"

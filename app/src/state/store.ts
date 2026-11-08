@@ -17,6 +17,7 @@ import {
   localDayKey,
   newlyCrossed,
   overlaps,
+  presetMatching,
   setStatus,
   settingsForPreset,
   startSession,
@@ -48,7 +49,7 @@ import {
   privacyCell,
   SAT_REFRESH_PAST_HOURS,
 } from '@/model';
-import { buildDemo, DEMO_MOMENTS, DEMO_PROFILE, DEMO_START, type DemoMoment } from '@/demo/mackenzie';
+import { buildDemo, DEMO_MOMENTS, DEMO_NUDGE_AFTER_S, DEMO_NUDGES, DEMO_PROFILE, DEMO_START, type DemoMoment } from '@/demo/mackenzie';
 import { accuracyKmOf, kmBetween, type Place } from '@/services/location';
 import * as notify from '@/services/notifications';
 
@@ -127,9 +128,12 @@ interface Actions {
   setProfile: (p: Partial<Profile>) => void;
   setPlace: (p: Place) => void;
   refreshForecast: (force?: boolean) => Promise<void>;
-  setShade: (s: Shade) => void;
-  setPreset: (p: Preset) => void;
-  setCustom: (x: ExposureSettings | null) => void;
+  /**
+   * The one way screens set what you're doing: full settings incl. shade. A preset
+   * match becomes the remembered activity; anything else is kept as custom. A
+   * running session switches from now on and keeps its dose.
+   */
+  setActivity: (x: ExposureSettings) => void;
   start: () => void;
   pause: () => void;
   resume: () => void;
@@ -225,6 +229,39 @@ function thresholdMinutes(s: Session, ctx: UVContext, profile: SkinProfile, caut
 
 let lastAlertKey = '';
 
+// ---------------------------------------------------------------- demo nudge
+
+let demoNudgeTimer: ReturnType<typeof setTimeout> | null = null;
+
+function cancelDemoNudge() {
+  if (demoNudgeTimer) clearTimeout(demoNudgeTimer);
+  demoNudgeTimer = null;
+  void notify.cancel('demo-nudge');
+}
+
+/**
+ * The demo's scripted sunscreen notification, DEMO_NUDGE_AFTER_S after entering or
+ * jumping. A real OS notification when allowed (asks once, since the user just chose
+ * to start the demo); otherwise, or on web, an in-app banner.
+ */
+function scheduleDemoNudge(moment: DemoMoment) {
+  cancelDemoNudge();
+  const nudge = DEMO_NUDGES[moment];
+  if (!nudge) return;
+  void notify.ensurePermission().then(async (ok) => {
+    if (ok && (await notify.canNotify())) {
+      await notify.scheduleDemoNudge(DEMO_NUDGE_AFTER_S, nudge.title, nudge.body);
+      return;
+    }
+    demoNudgeTimer = setTimeout(() => {
+      demoNudgeTimer = null;
+      const s = useStore.getState();
+      // the banner appends ". Tap to dismiss.", so drop the body's final full stop
+      if (s.demo?.moment === moment) useStore.setState({ banner: `${nudge.title} ${nudge.body.replace(/\.$/, '')}` });
+    }, DEMO_NUDGE_AFTER_S * 1000);
+  });
+}
+
 /** Mackenzie's state at a demo moment, built by the real engine. The demo clock starts at that moment and runs. */
 function demoSlices(moment: DemoMoment) {
   const d = buildDemo(moment);
@@ -268,7 +305,9 @@ export const useStore = create<Store>()(
         set((s) => {
           const next = { ...s.profile, ...p };
           // the prior depends on skin type, and old answers are re-read against it
-          return { profile: p.skinType != null && p.skinType !== s.profile.skinType ? recalibrated(next, s.checkIns) : next };
+          const profile = p.skinType != null && p.skinType !== s.profile.skinType ? recalibrated(next, s.checkIns) : next;
+          // choosing a default activity replaces any custom choice for the next session
+          return p.preset != null ? { profile, custom: null } : { profile };
         }),
 
       setPlace: (place) => {
@@ -309,37 +348,19 @@ export const useStore = create<Store>()(
         });
       },
 
-      setShade: (shade) => {
-        set({ shade });
-        const { active } = get();
+      setActivity: (x) => {
+        const match = presetMatching(x, get().profile.preset);
+        const shade = x.shade ?? 'none';
+        set((s) => ({
+          shade,
+          custom: match ? null : { ...x, shade },
+          profile: match ? { ...s.profile, preset: match } : s.profile,
+        }));
+        const { active, profile } = get();
         if (active && active.status !== 'completed') {
           get().tick();
           const a = get().active!;
-          set({ active: changeSettings(a, a.lastT, { ...a.settings, shade }, a.preset) });
-          lastAlertKey = '';
-          get().tick();
-        }
-      },
-
-      setPreset: (preset) => {
-        set((s) => ({ profile: { ...s.profile, preset }, custom: null }));
-        const { active, shade } = get();
-        if (active && active.status !== 'completed') {
-          get().tick();
-          const a = get().active!;
-          set({ active: changeSettings(a, a.lastT, settingsForPreset(preset, shade), preset) });
-          lastAlertKey = '';
-          get().tick();
-        }
-      },
-
-      setCustom: (custom) => {
-        set({ custom });
-        const { active, shade, profile } = get();
-        if (active && active.status !== 'completed' && custom) {
-          get().tick();
-          const a = get().active!;
-          set({ active: changeSettings(a, a.lastT, { ...custom, shade }, profile.preset) });
+          set({ active: changeSettings(a, a.lastT, { ...x, shade }, match ?? profile.preset) });
           lastAlertKey = '';
           get().tick();
         }
@@ -495,15 +516,18 @@ export const useStore = create<Store>()(
         void notify.cancel('sunscreen');
         set({ realSnapshot, demo: { moment }, ...demoSlices(moment), banner: null, forecastError: null });
         lastAlertKey = '';
+        scheduleDemoNudge(moment);
       },
 
       jumpDemo: (moment) => {
         if (!get().demo) return;
         set({ demo: { moment }, ...demoSlices(moment), banner: null });
         lastAlertKey = '';
+        scheduleDemoNudge(moment);
       },
 
       exitDemo: () => {
+        cancelDemoNudge();
         const s = get();
         const real = s.realSnapshot;
         if (real) set({ ...real, demo: null, realSnapshot: null, banner: null, forecastError: null });

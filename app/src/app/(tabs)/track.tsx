@@ -1,29 +1,24 @@
 import { router } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 
-import { Banner, Bar, Big, Button, Card, Chips, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
+import { ActivityPicker } from '@/components/cs/activity-picker';
+import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
 import { currentSPF, explainRate, skinDose } from '@/engine';
 import { useNow } from '@/hooks/use-app';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
-import { ACTIVITIES, POSTURES, PRESETS, SHADES, SURFACES, burnFraction, type Activity, type Posture, type Preset, type Shade, type Surface } from '@/model';
+import { burnFraction } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtBurnRange, fmtDuration, fmtMinutes, fmtPct, fmtSED, SITE_LABEL } from '@/utils/format';
 
-const PRESET_OPTIONS = (Object.keys(PRESETS) as Preset[]).map((k) => ({ value: k, label: PRESETS[k].label }));
-const SHADE_OPTIONS = (Object.keys(SHADES) as Shade[]).map((k) => ({ value: k, label: SHADES[k].label }));
-const POSTURE_OPTIONS = (Object.keys(POSTURES) as Posture[]).map((k) => ({ value: k, label: k === 'upright' ? 'Upright' : k === 'shoulders' ? 'Shoulders' : 'Lying' }));
-const SURFACE_OPTIONS = (Object.keys(SURFACES) as Surface[]).map((k) => ({ value: k, label: SURFACES[k].label }));
-const ACTIVITY_OPTIONS = (Object.keys(ACTIVITIES) as Activity[]).map((k) => ({ value: k, label: k[0].toUpperCase() + k.slice(1) }));
 
 export default function Track() {
   const c = useTheme();
   const now = useNow();
   const cond = useConditions();
   const s = useStore();
-  const [customOpen, setCustomOpen] = useState(false);
   const a = s.active;
   const profile = skinProfile(s.profile);
 
@@ -35,7 +30,6 @@ export default function Track() {
   }, [a, profile]);
 
   const settings = a ? a.settings : cond?.settings;
-  const shadeOnReflective = settings && settings.shade && settings.shade !== 'none' && ['sand', 'water', 'snow'].includes(settings.surface);
 
   const rate = useMemo(() => {
     if (!cond || !a) return null;
@@ -135,24 +129,12 @@ export default function Track() {
         </Card>
       )}
 
-      <Card>
-        <Label>What are you doing?</Label>
-        <Chips options={PRESET_OPTIONS} value={s.custom ? null : a ? a.preset : s.profile.preset} onChange={s.setPreset} />
-        <Label>Shade</Label>
-        <Chips options={SHADE_OPTIONS} value={a ? (a.settings.shade ?? 'none') : s.shade} onChange={s.setShade} />
-        {shadeOnReflective ? <Muted>Shade on {settings!.surface} protects less: UV reflects up from the ground.</Muted> : null}
-        <LinkText onPress={() => setCustomOpen((o) => !o)}>{customOpen ? 'Hide custom settings' : 'Customize posture, surface, activity ›'}</LinkText>
-        {customOpen && settings ? (
-          <>
-            <Muted>Posture</Muted>
-            <Chips options={POSTURE_OPTIONS} value={settings.posture} onChange={(posture) => s.setCustom({ ...settings, posture })} />
-            <Muted>Surface</Muted>
-            <Chips options={SURFACE_OPTIONS} value={settings.surface} onChange={(surface) => s.setCustom({ ...settings, surface })} />
-            <Muted>Activity</Muted>
-            <Chips options={ACTIVITY_OPTIONS} value={settings.activity} onChange={(activity) => s.setCustom({ ...settings, activity })} />
-          </>
-        ) : null}
-      </Card>
+      {settings ? (
+        <Card>
+          <ActivityPicker value={settings} onChange={s.setActivity} preferPreset={a ? a.preset : s.profile.preset} />
+          {a ? <Muted>Changes apply from now on; the dose so far is kept.</Muted> : null}
+        </Card>
+      ) : null}
 
       {a ? (
         <Row>

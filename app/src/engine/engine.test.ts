@@ -4,14 +4,19 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { fmtBurnRange } from '../utils/format.ts';
-import { buildDemo, DEMO_MOMENTS, DEMO_PROFILE } from '../demo/mackenzie.ts';
+import { buildDemo, DEMO_MOMENTS, DEMO_NUDGES, DEMO_PROFILE } from '../demo/mackenzie.ts';
 import { cUserOf, project } from '../model/index.ts';
 import {
   answerCheckIn,
   applySunscreen,
+  activityLabel,
   bandFor,
   calibrate,
+  describeSettings,
+  presetMatching,
+  sitesFor,
   rangeNarrowing,
+  readAt,
   skinDose,
   skinLearning,
   sunscreenHabit,
@@ -353,4 +358,55 @@ test('demo: the trends tell the story — more time out this week, much less dos
   const h = sunscreenHabit(d.sessions, d.now);
   assert.ok(h.doseCut! > 0.5 && h.labelSpf === 50);
   assert.ok(rangeNarrowing(skinLearning(2, d.checkIns)) > 0.25);
+});
+
+test('demo: the scripted sunscreen nudges say what the model shows at that moment', () => {
+  const post = calibrate(2, buildDemo('trailhead').checkIns);
+  const prof = { skinType: 2 as const, cUser: cUserOf(2, post), medLogSpread: post.logSpread };
+  const at = (m: 'dock' | 'trailhead' | 'summit') => {
+    const d = buildDemo(m);
+    const ctx: UVContext = { lat: d.place.lat, lon: d.place.lon, altitudeKm: d.place.elevationM / 1000, mode: 'demo', demoClouds: DEMO_PROFILE.demoClouds };
+    const today = [...d.sessions, ...(d.active ? [d.active] : [])].filter((s) => localDayKey(s.startedAt) === localDayKey(d.now)).reduce((a, s) => a + skinDose(s).protectedSED, 0);
+    return { reading: readAt(ctx, d.now), ttb: timeToBurnNow({ now: d.now, ctx, profile: prof, settings: settingsForPreset('walk'), priorDoseSED: today }) };
+  };
+  // dock: "UV is high"
+  assert.ok(at('dock').reading.uvi >= 6, 'UV high on the dock');
+  // trailhead: "over a 2½-hour hike you could reach your burn threshold" — cautious time within 150 min, central not
+  const t = at('trailhead');
+  assert.ok(t.reading.uvi < 3, 'UV low at the trailhead');
+  assert.ok(t.ttb.bareWorst.soonest !== null && t.ttb.bareWorst.soonest <= 150, `soonest ${t.ttb.bareWorst.soonest}`);
+  // summit: no nudge, because there's nothing to warn about
+  assert.equal(DEMO_NUDGES.summit, null);
+  assert.equal(at('summit').ttb.bareWorst.soonest, null);
+  assert.ok(DEMO_NUDGES.dock && DEMO_NUDGES.trailhead);
+});
+
+// ---------------------------------------------------------------- activity vocabulary (every screen)
+
+const PRESETS_LABEL = { walk: 'Walk / errands', run: 'Run / cycle', picnic: 'Park / picnic', beach: 'Beach', pool: 'Pool / lake', ski: 'Ski / snow' } as const;
+
+test('activity: each preset matches itself; any changed detail is Custom; labels are words', () => {
+  for (const k of ['walk', 'run', 'picnic', 'beach', 'pool', 'ski'] as const) {
+    const x = settingsForPreset(k, 'umbrella');
+    assert.equal(presetMatching(x), k, k); // shade doesn't change which activity it is
+    assert.equal(activityLabel(k, x), PRESETS_LABEL[k]);
+  }
+  const custom = { ...settingsForPreset('walk'), activity: 'swimming' as const };
+  assert.equal(presetMatching(custom), null);
+  assert.equal(activityLabel('walk', custom), 'Custom · Upright · Pavement / concrete · Swimming / in water');
+  // a custom outing that happens to equal another preset is labelled as that preset, not the stored one
+  assert.equal(activityLabel('walk', settingsForPreset('beach')), 'Beach');
+  assert.equal(describeSettings({ ...settingsForPreset('beach'), shade: 'umbrella' }), 'Lying down · Dry sand · Swimming / in water · Umbrella / awning');
+});
+
+test('activity: "shoulders" is not a separate model choice — it tracks the same sites and dose as upright', () => {
+  const up = settingsForPreset('walk');
+  const sh = { ...up, posture: 'shoulders' as const };
+  assert.deepEqual(sitesFor(sh), sitesFor(up));
+  const envAt = envAtFor(ctx);
+  const a = stepSession(changeSettings(startSession(NOON, 'walk', 'none', profile), NOON, up, 'walk'), NOON + 1_800_000, envAt, profile);
+  const b = stepSession(changeSettings(startSession(NOON, 'walk', 'none', profile), NOON, sh, 'walk'), NOON + 1_800_000, envAt, profile);
+  near(currentFraction(b, profile).fraction, currentFraction(a, profile).fraction, 1e-12);
+  // so old sessions saved with it still label as the upright preset
+  assert.equal(presetMatching(sh), 'walk');
 });

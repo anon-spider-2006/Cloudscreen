@@ -82,6 +82,26 @@ export const DEMO_MOMENTS: Record<DemoMoment, { label: string; short: string; t:
 };
 export const DEMO_START: DemoMoment = 'trailhead';
 
+/** Seconds after entering (or jumping) before the scripted sunscreen nudge. */
+export const DEMO_NUDGE_AFTER_S = 30;
+
+/**
+ * The scripted notification for a moment (null = none: on the summit at 7 pm the
+ * UV is too low for a sunscreen nudge to be honest). Wording matches what the
+ * model shows at that moment (see the demo tests).
+ */
+export const DEMO_NUDGES: Record<DemoMoment, { title: string; body: string } | null> = {
+  dock: {
+    title: 'No sunscreen at lunch',
+    body: 'UV is high on the dock and you’re not wearing any. Put SPF 50 on, or stay under the umbrella.',
+  },
+  trailhead: {
+    title: 'Sunscreen before the hike?',
+    body: 'UV is low now, but lunch on the dock already counts toward today. Over a 2½-hour hike you could reach your burn threshold. Put SPF 50 on first.',
+  },
+  summit: null,
+};
+
 const ctxFor = (p: DemoPlace): UVContext => ({
   lat: p.lat,
   lon: p.lon,

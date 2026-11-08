@@ -4,9 +4,8 @@ import { Alert, Platform } from 'react-native';
 import { Bar, Button, Card, Disclaimer, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor } from '@/constants/theme';
-import { currentFraction, describeSettings, localDayKey, skinDose } from '@/engine';
+import { activityLabel, currentFraction, describeSettings, localDayKey, skinDose } from '@/engine';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS } from '@/model';
 import { skinProfile, useStore } from '@/state/store';
 import { fmtDay, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
@@ -46,7 +45,7 @@ export default function SessionDetail() {
       <Card>
         <Label>{fmtDay(session.startedAt)}</Label>
         <ThemedText type="smallBold" style={{ fontSize: 20 }}>
-          {fmtTime(session.startedAt)}–{fmtTime(session.endedAt ?? session.lastT)} · {PRESETS[session.preset].label}
+          {fmtTime(session.startedAt)}–{fmtTime(session.endedAt ?? session.lastT)} · {activityLabel(session.preset, session.settings)}
         </ThemedText>
         <Muted>
           {fmtShortDuration(session.outdoorSeconds)} outside · avg UV {avgUVI.toFixed(1)} · max UV {session.maxUVI.toFixed(1)}

@@ -8,11 +8,10 @@ import { Banner, Bar, Big, Button, Card, Disclaimer, Label, LinkText, Muted, Row
 import { Wordmark } from '@/components/cs/wordmark';
 import { ThemedText } from '@/components/themed-text';
 import { fractionColor, uvCategory } from '@/constants/theme';
-import { currentSPF, localDayKey, readAt, summarizeDays } from '@/engine';
+import { activityLabel, currentSPF, localDayKey, readAt, summarizeDays } from '@/engine';
 import { useNow } from '@/hooks/use-app';
 import { useConditions } from '@/hooks/use-conditions';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS } from '@/model';
 import { pendingCheckIn, skinProfile, useStore } from '@/state/store';
 import { fmtBurnRange, fmtMinutes, fmtPct, fmtSED, fmtShortDuration, fmtTime, SITE_LABEL } from '@/utils/format';
 
@@ -69,7 +68,6 @@ export default function Home() {
   const cat = uvCategory(reading.uvi);
   const mode = reading.mode;
   const stale = mode === 'forecast' && forecast ? now - forecast.fetchedAt > 3 * 3_600_000 && profile.uvMode === 'forecast' : false;
-  const preset = PRESETS[profile.preset];
   const todayFraction = today?.peakFraction ?? 0;
 
   return (
@@ -109,7 +107,7 @@ export default function Home() {
       <Card tone="sun">
         <Row style={{ justifyContent: 'space-between' }}>
           <Label>Time to burn (est.)</Label>
-          <Muted>{preset.label}</Muted>
+          <Muted>{activityLabel(profile.preset, cond.settings)}</Muted>
         </Row>
         <Row style={{ justifyContent: 'space-between' }}>
           <ThemedText>Bare skin</ThemedText>

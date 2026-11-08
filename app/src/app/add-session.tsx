@@ -2,21 +2,16 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import Svg, { Path, Circle } from 'react-native-svg';
+import { ActivityPicker } from '@/components/cs/activity-picker';
 import { Select, DateSelect } from '@/components/cs/select';
 import { Button, Card, Label, Muted, Row, Screen } from '@/components/cs/ui';
 import { ThemedText } from '@/components/themed-text';
 import { useTheme } from '@/hooks/use-theme';
-import { PRESETS, SHADES, SURFACES, type Posture, type Shade, type Surface } from '@/model';
-import { nowFor, useStore } from '@/state/store';
+import { presetMatching } from '@/engine';
+import type { ExposureSettings } from '@/model';
+import { nowFor, settingsFor, useStore } from '@/state/store';
 import { fmtTime } from '@/utils/format';
 
-const INTENSITY = [
-  { value: 1, label: '1 · Resting / no sweat' },
-  { value: 2, label: '2 · Light movement / no sweat' },
-  { value: 3, label: '3 · Moderate / some sweat' },
-  { value: 4, label: '4 · Vigorous / sweaty' },
-  { value: 5, label: '5 · Very intense / heavy sweat' },
-];
 const midnight = (t: number) => { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); };
 
 export default function AddSession() {
@@ -30,12 +25,10 @@ export default function AddSession() {
   const [startMinute, setStartMinute] = useState<number | null>(null);
   const [hours, setHours] = useState(1);
   const [minutes, setMinutes] = useState(0);
-  const initial = PRESETS[profile.preset];
-  const [intensity, setIntensity] = useState(initial.activity === 'sweating' ? 3 : 1);
-  const [water, setWater] = useState<'no' | 'yes'>(initial.activity === 'swimming' ? 'yes' : 'no');
-  const [posture, setPosture] = useState<Posture>(initial.posture);
-  const [surface, setSurface] = useState<Surface>(initial.surface);
-  const [shade, setShade] = useState<Shade>('none');
+  // same picker and starting point as Track: whatever you last chose
+  const storeShade = useStore((s) => s.shade);
+  const custom = useStore((s) => s.custom);
+  const [activity, setActivity] = useState<ExposureSettings>(() => settingsFor({ profile, shade: storeShade, custom }));
   const [sunscreen, setSunscreen] = useState<'none' | 'start'>('none');
   const [error, setError] = useState<string | null>(null);
   const duration = hours * 60 + minutes;
@@ -71,20 +64,18 @@ export default function AddSession() {
       {validation ? <ThemedText type="small" style={{ color: c.danger }}>{validation}</ThemedText> : null}
     </Card>
     <Card>
-      <Label>Tell us about the exposure</Label>
-      <Select label="Activity intensity" value={intensity} options={INTENSITY} onChange={setIntensity} />
-      <Muted>1 = resting with no sweat. 5 = very intense activity with heavy sweating. Choose the description closest to your outing; heat can cause sweat even with little movement.</Muted>
-      <Select label="Were you swimming or underwater?" value={water} options={[{ value: 'no', label: 'No' }, { value: 'yes', label: 'Yes · swimming or underwater' }]} onChange={setWater} />
-      <Muted>The estimate uses dry for levels 1–2, sweating for 3–5, or swimming if you choose Yes. It does not calculate reduced UV at underwater depths.</Muted>
-      <Select label="Body position" value={posture} options={[{ value: 'upright', label: 'Upright · standing / sitting / moving' }, { value: 'lying', label: 'Lying down' }, { value: 'shoulders', label: 'Mostly top-facing skin' }]} onChange={setPosture} />
-      <Select label="Surrounding surface" value={surface} options={(Object.keys(SURFACES) as Surface[]).map((value) => ({ value, label: SURFACES[value].label }))} onChange={setSurface} />
-      <Select label="Shade" value={shade} options={(Object.keys(SHADES) as Shade[]).map((value) => ({ value, label: SHADES[value].label }))} onChange={setShade} />
+      <ActivityPicker title="What were you doing?" value={activity} onChange={setActivity} preferPreset={profile.preset} />
+    </Card>
+    <Card>
       <Select label="Sunscreen" value={sunscreen} options={[{ value: 'none', label: 'None' }, { value: 'start', label: `SPF ${profile.spf} at the start` }]} onChange={setSunscreen} />
     </Card>
     {error ? <ThemedText accessibilityRole="alert" style={{ color: c.danger }}>{error}</ThemedText> : null}
     <Button title="Add session" disabled={start === null || !!validation} onPress={() => {
       if (start === null || end === null || validation) return;
-      const result = add({ start, end, preset: profile.preset, shade, sunscreenAt: sunscreen === 'start' ? start : null, settings: { posture, surface, shade, activity: water === 'yes' ? 'swimming' : intensity >= 3 ? 'sweating' : 'dry' } });
+      const shade = activity.shade ?? 'none';
+      // label it with the matching preset (or keep the default name; History shows "Custom · …" when settings differ)
+      const preset = presetMatching(activity, profile.preset) ?? profile.preset;
+      const result = add({ start, end, preset, shade, sunscreenAt: sunscreen === 'start' ? start : null, settings: { ...activity, shade } });
       if (result.ok) router.back(); else setError(result.reason);
     }} />
     <Muted>Calculated from the available forecast or UV estimate for those hours and labelled “added later · estimated”.</Muted>

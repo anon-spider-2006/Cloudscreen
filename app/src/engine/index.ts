@@ -15,6 +15,8 @@ import {
   CMF_FIT_INFO,
   MED_SED,
   PRESETS,
+  SHADES,
+  SURFACES,
   WORST_SITE_POSTURES,
   advance,
   burnFraction,
@@ -286,8 +288,51 @@ export function skinDose(s: Session) {
   return { protectedSED: st?.doseSED ?? 0, unprotectedSED: st?.bareSED ?? st?.ambientSED ?? 0 };
 }
 
+// ---------------------------------------------------------------- activity: one vocabulary for every screen
+
+const SURFACE_LABEL = Object.fromEntries(Object.entries(SURFACES).map(([k, v]) => [k, v.label])) as Record<keyof typeof SURFACES, string>;
+const SHADE_LABEL = Object.fromEntries(Object.entries(SHADES).map(([k, v]) => [k, v.label])) as Record<keyof typeof SHADES, string>;
+
+/**
+ * The choices the model actually distinguishes. Posture: any upright setting tracks
+ * face/arms and shoulders together (sitesFor), so 'shoulders' is not a separate
+ * choice: it behaves exactly like upright and is labelled as such.
+ */
+export const POSITION_CHOICES = ['upright', 'lying'] as const;
+export const SKIN_CHOICES = ['dry', 'sweating', 'swimming'] as const;
+
+export const POSITION_LABEL: Record<Posture, string> = { upright: 'Upright', shoulders: 'Upright', lying: 'Lying down' };
+export const SKIN_LABEL: Record<ExposureSettings['activity'], string> = { dry: 'Dry', sweating: 'Sweating', swimming: 'Swimming / in water' };
+/** One-line meaning of each skin state, in model terms. */
+export const SKIN_HELP: Record<ExposureSettings['activity'], string> = {
+  dry: 'Normal wear on sunscreen.',
+  sweating: 'Moving enough to sweat, or just hot: sunscreen wears 2× faster and wet skin burns about 16% sooner.',
+  swimming: 'In and out of the water: sunscreen wears 4× faster and wet skin burns about 25% sooner.',
+};
+
+const normPosture = (p: Posture): Posture => (p === 'shoulders' ? 'upright' : p);
+
+/** The preset these settings are (shade ignored), or null if they're custom. */
+export function presetMatching(x: ExposureSettings, prefer?: Preset): Preset | null {
+  const same = (k: Preset) => {
+    const p = PRESETS[k];
+    return p.posture === normPosture(x.posture) && p.surface === x.surface && p.activity === x.activity;
+  };
+  if (prefer && same(prefer)) return prefer;
+  return (Object.keys(PRESETS) as Preset[]).find(same) ?? null;
+}
+
+/** "Position · Ground · Skin" in words. */
 export function describeSettings(x: ExposureSettings): string {
-  return `${x.posture}, ${x.surface}, ${x.activity}${x.shade && x.shade !== 'none' ? `, ${x.shade} shade` : ''}`;
+  const parts = [POSITION_LABEL[x.posture], SURFACE_LABEL[x.surface], SKIN_LABEL[x.activity]];
+  if (x.shade && x.shade !== 'none') parts.push(SHADE_LABEL[x.shade]);
+  return parts.join(' · ');
+}
+
+/** What to call an outing: its preset if the settings match one, otherwise "Custom · …". */
+export function activityLabel(preset: Preset, x: ExposureSettings): string {
+  const p = presetMatching(x, preset);
+  return p ? PRESETS[p].label : `Custom · ${describeSettings({ ...x, shade: 'none' })}`;
 }
 
 // ---------------------------------------------------------------- time to burn now
